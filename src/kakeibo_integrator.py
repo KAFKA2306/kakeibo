@@ -6,6 +6,7 @@ import re
 import logging
 from datetime import datetime
 import unicodedata
+import unicodedata
 
 # ロギング設定
 log_dir = os.path.join(os.getcwd(), 'logs')
@@ -110,184 +111,44 @@ def determine_card_type(file_name):
         return '不明'
 
 
+
 def categorize_transaction(description, amount):
-    """取引内容からカテゴリを判定する充実版"""
-
-    description = unicodedata.normalize('NFKC', str(description).lower()) if description else ''
-
-    # 金額が正の場合（収入）
+    """取引内容からカテゴリを判定する簡潔版"""
+    desc = unicodedata.normalize('NFKC', str(description or '')).lower()
+    
+    # 収入判定
     if amount is not None and (isinstance(amount, (int, float)) and amount > 0):
-        if '給与' in description or '給料' in description:
-            return '収入:給与'
-        elif '賞与' in description or 'ボーナス' in description:
-            return '収入:賞与'
-        elif '利息' in description or '決算お利息' in description:
-            return '収入:利息'
-        elif 'refund' in description or '返金' in description or 'cashback' in description:
-            return '収入:返金'
-        elif 'balance' in description:
-            return '収入:残高調整'
-        elif 'キャッシュバック' in description:
-            return '収入:キャッシュバック'
-        elif '振込' in description:
-            if 'wise' in description or 'transferwise' in description:
-                return '収入:海外送金'
-            return '収入:振込'
-        else:
-            return '収入:その他'
-
-    # 以下は支出カテゴリ
-    # 食費関連
-    if ('スーパー' in description or 'ストア' in description or
-        'aldi' in description or 'rimi' in description or 'spar' in description or
-        'イオン' in description or 'マツヤ' in description or 'tigre' in description or
-        'ヨシノヤ' in description or '業務スーパー' in description or 'hanaro supermarkt' in description or'ニツパン' in description or
-        'bonus' in description or 'klaas & kock' in description or 'pick nick' in description or
-        'tto advance' in description or
-        'エビス' in description or
-        'wakaba japan shop' in description or 'mini market' in description):
-        return '支出:食料品'
-    elif ('コンビニ' in description or 'セブン' in description or 'ローソン' in description or
-          'ファミリーマート' in description or '7-eleven' in description or 'narvesen' in description or
-          'familymart' in description or 'relay' in description or 'yormas' in description):
-        return '支出:コンビニ'
-    elif ('飲食' in description or 'レストラン' in description or '食堂' in description or
-          'mcdonald' in description or 'burger king' in description or 'sbarro' in description or
-          'ヤヨイケン' in description or '松屋' in description or "domino's" in description or
-          'リンクス' in description or 'カフェ' in description or 'venchi' in description or
-          'mannucci' in description or 'umami' in description or 'mexicana' in description or
-          '東洋軒' in description or 'レッドペッパー' in description or 'red pepper' in description or
-          'yayoiken' in description or 'marché' in description or 'ahoi steffen henssler' in description or
-          'sapori & dintorni' in description or 'il mercato centrale' in description or
-          'don nino' in description or 'vecchio carlino' in description or 'bæjarins beztu pylsur' in description or
-          'japan food express' in description or 'dae-yang' in description or 'hering' in description or
-          'scheiners am dom' in description or 'サンフラワ' in description or 'tsumura' in description or 'advanced f' in description or
-          'カイサ' in description or
-          'コーラ' in description or
-          'ウーバ' in description or
-          'コーヒー' in description or 'coffee' in description or 'クハウス' in description or
-          'スターバックス' in description or 'starbucks' in description or 'ドトール' in description or
-          'デリカ' in description or 'りくろーおじさん' in description or 'asty京都' in description):
-        return '支出:外食'
-
-    # 交通関連
-    elif ('交通' in description or 'タクシ-' in description or
-          '鉄道' in description or 'バス' in description or 'lufthansa' in description or
-          'klm' in description or 'deutsche bahn' in description or 'train' in description or
-          'mvg' in description or 'trenitalia' in description or 'hochbahn' in description or
-          'スマート' in description or 'jr' in description or 'suica' in description or
-          'rheinbahn' in description or 'tvm-' in description or 'alilaguna' in description or '東海' in description or
-          'venezia unica' in description or 'gotogate' in description or 'play' in description or
-          'airport' in description or '空港' in description or 'flugh' in description or
-          'rvk bilast' in description or 'excursions' in description or 'umeda' in description or
-          'さんふらわあ' in description or 'フェリー' in description or 'airo catering' in description or
-          'eda' in description or
-          'fríhöfnin' in description ):
-
-        return '支出:交通費'
-    elif ('jet' in description or 'shell' in description or 'tankstelle' in description or'ikuy' in description or
-          'total' in description):
-        return '支出:ガソリン代'
-    elif ('parking' in description or 'parkraum' in description or 'molenpoortparking' in description or
-          'goldbeck parking' in description):
-        return '支出:駐車場'
-
-    # 宿泊・旅行関連
-    elif ('hotel' in description or 'inn' in description or '宿' in description or
-          'agoda' in description or 'ホテル' in description or
-          'wellton' in description or 'holiday inn' in description or 'h2 htl' in description or
-          'nidya otel' in description or 'yokohama air cabin' in description):
-        return '支出:宿泊費'
-
-    # ショッピング関連
-    elif ('amazon' in description or 'アマゾン' in description or
-          'ｱﾏｿﾞﾝ' in description):
-        return '支出:ネット通販'
-    elif ('ユニクロ' in description or 'takko' in description or 'icewear' in description or
-          'euroshop' in description or 'rossmann' in description or 'parka' in description or
-          't&e store' in description or 'rose' in description):
-        return '支出:衣料品・雑貨'
-    elif ('カメラ' in description or 'ビック' in description or 'ﾋﾞﾂｸ' in description or
-          'ヨドバシカメラ' in description or 'beurer' in description):
-        return '支出:電化製品'
-    elif ('booth' in description or 'limitedsecond' in description):
-        return '支出:オンラインショッピング'
-    elif ('marien apotheke' in description or '薬局' in description):
-        return '支出:医薬品'
-
-    # エンタメ・レジャー関連
-    elif ('steam' in description or 'play japan' in description or 'game' in description or
-          'ナガクツ店' in description or 'ボドゲ' in description or 'ギフトコード' in description or
-          'universal' in description or 'ユニバーサル' in description or 'museum' in description or
-          'kunsthalle' in description or 'deutsches' in description or 'palazzo' in description or
-          'イマーシブ' in description or 'ﾁｹｯﾄ' in description or 'チケット' in description or
-          'blue lagoon' in description or 'hauptkirche st. michaelis' in description or
-          'holocafe' in description or 'icelandia' in description or 'イープラスショップ' in description or
-          'ウエーブ' in description or '楽天トラベル観光体験' in description or
-          'bezrindas' in description):
-        return '支出:娯楽・レジャー'
-    elif ('audible' in description or 'chrome' in description or 'ｸﾞｰｸﾞﾙ' in description or
-          'google' in description or 'freenet funk' in description):
-        return '支出:サブスクリプション'
-
-    # 金融関連
-    elif ('積立' in description or '投資' in description or '証券' in description or
-          'ラクテンシヨウケン' in description):
-        return '支出:投資'
-    elif ('振替' in description or '引落' in description or '外貨' in description or'振込 タ' in description or 'カザ' in description or
-          '定期預金' in description):
-        return '支出:資金移動'
-    elif ('fee' in description or '手数料' in description or 'atm' in description):
-        return '支出:手数料'
-
-    # 電子マネー・決済関連
-    elif ('チャージ' in description or 'ペイ' in description or 'pay' in description or
-          'paypal' in description or 'モバイル決済' in description or
-          'visa provisioning service' in description or 'pppl eu ce eur' in description or
-          'ウーバーイーツ' in description or 'uber eats' in description):
-        return '支出:電子マネー'
-
-    # その他の分類
-    elif ('通信' in description or '携帯' in description or 'モバイル' in description
-          ):
-        return '支出:通信費'
-    elif ('公共' in description or '電気' in description or 'ガス' in description or
-          '水道' in description or 'stadtwerke' in description or 'stadt rheine' in description):
-        return '支出:公共料金'
-    elif ('hairサロン' in description or 'ヘア－スタジオ' in description or 'salon' in description or
-          'treatwell' in description):
-        return '支出:美容・健康'
-    elif ('openai' in description or 'freenetfunk' in description):
-        return '支出:サービス利用料'
-    elif ('messe' in description):
-        return '支出:展示会'
-    elif ('スモークハウス' in description):
-        return '支出:キッチン用品'
-    elif ('コーラ' in description or '自動販売機' in description or 'ジドウハンバイキ' in description):
-        return '支出:飲料'
-    elif ('パンアイピーエス' in description):
-        return '支出:事務用品'
-    elif ('おひさまhouse' in description or '壺焼きいも' in description or 'ジゴクムシコ' in description or
-          'オカモトヤ' in description):
-        return '支出:お土産'
-    elif ('大分県国東市' in description):
-        return '支出:行政サービス'
-    elif ('cleaning' in description or 'sanifair' in description):
-        return '支出:クリーニング'
-    elif ('aramark' in description):
-        return '支出:社員食堂'
-    elif ('transferwise' in description):
-        return '支出:送金'
-    elif ('sakuragiya' in description or 'hamanaga' in description):
-        return '支出:日本食材'
-    elif ('b.v. algemene amsterdamse' in description or 'hermann baveld' in description or
-          'hza muenster' in description or 'izbraukumu tirdzniecib' in description or
-          'northb' in description or 'centrale m3' in description or 'jolly86' in description or
-          'sas hsp' in description or 'nsc enschede' in description or 'tmc p-enschede' in description):
-        return '支出:海外サービス'
-
-    # 上記のカテゴリに当てはまらない場合
+        for kw, cat in [
+            (['wise', 'transferwise'], '収入:海外送金'),
+            (['給与', '給料'], '収入:給与'),
+            (['賞与', 'ボーナス'], '収入:賞与'),
+            (['利息', '決算お利息'], '収入:利息'),
+            (['refund', '返金', 'cashback', 'キャッシュバック'], '収入:返金'),
+            (['balance'], '収入:残高調整'),
+            (['振込'], '収入:振込')
+        ]:
+            if any(w in desc for w in kw): return cat
+        return '収入:その他'
+    
+    # 支出カテゴリのキーワードと対応するカテゴリのマッピング
+    categories = [
+        (['スーパー', 'ストア', 'aldi', 'rimi', 'spar', 'イオン', 'マツヤ', 'tigre', 'ヨシノヤ', '業務スーパー', 'supermar', 'klaas & kock', 'pick nick', 'tto adv', 'エビス', 'wakaba', 'mini market', '日本食材', 'sakuragiya', 'hamanaga', 'パンアイピ'], '支出:食料品'),
+        (['コンビニ', 'セブン', 'ローソン', 'ファミリーマート', '7-eleven', 'narvesen', 'familymart', 'relay', 'yormas', 'クリーニング', 'cleaning', 'sanifair', 'スモークハウス', 'キッチン用品', '事務用品', 'yayoiken', 'marché', 'ahoi', 'sapori', 'mercato', 'don nino', 'vecchio', 'pylsur', 'japan food', 'dae-yang', 'hering', 'scheiners', 'サンフラワ', 'tsumura', 'advanced f', 'カイサ', 'コーラ', 'ウーバ', 'コーヒー', 'coffee', 'クハウス', 'スターバックス', 'starbucks', 'ドトール', 'デリカ', 'りくろー', 'asty京都', '社員食堂', 'aramark', '自動販売機', 'ジドウハンバイキ', '飲料', 'eats'], '支出:外食'),
+        (['交通', 'タクシ', '鉄道', 'バス', 'lufthansa', 'klm', 'deutsche bahn', 'train', 'mvg', 'trenitalia', 'hochbahn', 'スマート', 'jr', 'suica', 'rheinbahn', 'tvm-', 'alilaguna', '東海', 'venezia', 'gotogate', 'play', 'airport', '空港', 'flugh', 'rvk', 'excursions', 'umeda', 'さんふらわあ', 'フェリー', 'airo', 'eda', 'fríhöfnin', 'ガソリン', 'jet', 'shell', 'tankstelle', 'ikuy', 'total', '駐車場', 'parking', 'parkraum', 'molenpoort', 'goldbeck'], '支出:交通費'),
+        (['hotel', 'inn', '宿', 'agoda', 'ホテル', 'wellton', 'holiday inn', 'h2 htl', 'nidya otel'], '支出:宿泊費'),
+        (['amazon', 'アマゾン', 'ｱﾏｿﾞﾝ', 'ユニクロ', 'takko', 'icewear', 'euroshop', 'rossmann', 'parka', 't&e store', 'rose', 'カメラ', 'ビック', 'ﾋﾞﾂｸ', 'ヨドバシ', 'beurer', '電化製品', 'booth', 'limited', 'オンラインショッピング', '衣料品', 'おひさまhouse', '壺焼きいも', 'ジゴクムシコ', 'オカモトヤ', 'お土産'], '支出:ショッピング'),
+        (['apotheke', '薬局', '医薬品', 'hairサ', 'ヘア', 'salon', 'treatwell', '美容・健康'], '支出:医療・健康'),
+        (['steam', 'play japan', 'game', 'ガクツ', 'ボドゲ', 'ギフトコード', 'universal', 'ユニバーサル', 'museum', 'unsthalle', 'utsches', 'palazzo', 'イマーシブ', 'ﾁｹｯﾄ', 'チケット', 'blue lagoon', 'hauptkirche', 'holocafe', 'icelandia', 'イープラス', 'ウエーブ', '楽天トラベル', 'bezrindas', '展示会', 'messe', 'ama air'], '支出:娯楽・レジャー'),
+        (['通信', '携帯', 'モバイル', '通信費', '公共', '電気', 'ガス', '水道', 'stadtwer', 'tadt rhei', '公共料金', '分県国', '行政サービス','audible', 'chrome', 'ｸﾞｰｸﾞﾙ', 'google', 'freenet funk', 'openai', 'freenetfunk', 'サービス利用料'], '支出:サブスクリプション・税'),
+        (['振替', '引落', '外貨', '振込 タ', 'カザ', '定期預金', '送金', '積立', '投資', '証券', 'ラクテンシヨウケン'], '支出:資金移動'),
+    ]
+    
+    for keywords, category in categories:
+        if any(k in desc for k in keywords):
+            return category
+    
     return '支出:その他'
+
 
 def process_file(file_path):
     """CSVファイルを読み込み、標準形式に変換"""
