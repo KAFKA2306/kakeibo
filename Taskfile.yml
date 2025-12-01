@@ -1,0 +1,38 @@
+version: '3'
+
+tasks:
+  install:
+    desc: Install dependencies
+    cmds:
+      - uv sync
+
+  test:
+    desc: Run tests
+    cmds:
+      - uv run pytest
+
+  lint:
+    desc: Run linters
+    cmds:
+      - uv run ruff check .
+
+  format:
+    desc: Format code
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --select I --fix .
+
+  typecheck:
+    desc: Run static type checks
+    cmds:
+      - uv run mypy src/
+
+  dev:
+    desc: Run the API server in development mode
+    cmds:
+      - uv run uvicorn src.kakeibo.api:app --reload
+
+  cli:
+    desc: Run the CLI
+    cmds:
+      - uv run python src/kakeibo/cli.py {{.CLI_ARGS}}

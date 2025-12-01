@@ -1,24 +1,23 @@
 from pathlib import Path
-from typing import List, Optional
-import polars as pl
+
 from loguru import logger
 
-from src.kakeibo.ports.parser import ParserPort
-from src.kakeibo.domain.cleaning import CleaningPipeline
-from src.kakeibo.config import settings
-from src.kakeibo.adapters.parsers.sony import SonyBankParser
 from src.kakeibo.adapters.parsers.generic_csv import GenericCsvParser
+from src.kakeibo.adapters.parsers.sony import SonyBankParser
+from src.kakeibo.config import settings
+from src.kakeibo.domain.cleaning import CleaningPipeline
+
 
 class ProcessFileUseCase:
     def __init__(self):
         self.cleaning_pipeline = CleaningPipeline()
         self.parsers = {
-            'sony': SonyBankParser(),
-            'generic': GenericCsvParser(),
+            "sony": SonyBankParser(),
+            "generic": GenericCsvParser(),
             # 他のパーサーもここに追加
         }
 
-    def execute(self, file_path: Path, output_dir: Optional[Path] = None) -> bool:
+    def execute(self, file_path: Path, output_dir: Path | None = None) -> bool:
         if output_dir is None:
             output_dir = Path(settings.output_dir)
 
@@ -30,8 +29,8 @@ class ProcessFileUseCase:
             logger.warning(f"Unknown file type: {file_path.name}")
             return False
 
-        parser = self.parsers.get(file_type, self.parsers['generic'])
-        encoding = settings.default_encodings.get(file_type, 'utf-8')
+        parser = self.parsers.get(file_type, self.parsers["generic"])
+        encoding = settings.default_encodings.get(file_type, "utf-8")
 
         try:
             # 2. Parse
@@ -53,8 +52,9 @@ class ProcessFileUseCase:
             # リトライロジック (エンコーディング変更など) はここに実装可能
             return False
 
-    def _identify_file_type(self, filename: str) -> Optional[str]:
+    def _identify_file_type(self, filename: str) -> str | None:
         import re
+
         for type_name, pattern in settings.file_patterns.items():
             if re.search(pattern, filename, re.IGNORECASE):
                 return type_name

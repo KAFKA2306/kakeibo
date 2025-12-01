@@ -1,6 +1,5 @@
 import polars as pl
-from datetime import datetime
-import re
+
 
 class CleaningPipeline:
     """データクリーニングパイプライン"""
@@ -18,9 +17,9 @@ class CleaningPipeline:
         """
 
         # 1. 基本的な正規化 (空白除去など)
-        df = df.with_columns([
-            pl.col(c).str.strip_chars() for c in df.columns if df.schema[c] == pl.Utf8
-        ])
+        df = df.with_columns(
+            [pl.col(c).str.strip_chars() for c in df.columns if df.schema[c] == pl.Utf8]
+        )
 
         # 2. 金額のパース
         # 入金と出金を数値に変換し、amount (入金 - 出金) を計算
@@ -42,7 +41,7 @@ class CleaningPipeline:
             "description",
             "balance",
             "memo",
-            "source"
+            "source",
         ]
 
         # 存在しないカラムがあればnullで埋める
@@ -59,18 +58,20 @@ class CleaningPipeline:
             # カンマと円マークを除去し、数値に変換できる文字のみ残す（マイナスは保持）
             return (
                 pl.col(col_name)
-                .str.replace_all(r"[^0-9\-]", "") # 数字とマイナス以外を削除
+                .str.replace_all(r"[^0-9\-]", "")  # 数字とマイナス以外を削除
                 .cast(pl.Int64, strict=False)
                 .fill_null(0)
             )
 
         # raw_deposit, raw_withdrawal がある場合
         if "raw_deposit" in df.columns and "raw_withdrawal" in df.columns:
-            df = df.with_columns([
-                clean_num_str("raw_deposit").alias("deposit_val"),
-                clean_num_str("raw_withdrawal").alias("withdrawal_val"),
-                clean_num_str("raw_balance").alias("balance")
-            ])
+            df = df.with_columns(
+                [
+                    clean_num_str("raw_deposit").alias("deposit_val"),
+                    clean_num_str("raw_withdrawal").alias("withdrawal_val"),
+                    clean_num_str("raw_balance").alias("balance"),
+                ]
+            )
 
             # amount = deposit - withdrawal (withdrawalが正の値で入っている前提)
             # もしwithdrawalが既にマイナスで入っているケースがあれば調整が必要だが、
@@ -83,10 +84,12 @@ class CleaningPipeline:
 
         # raw_amount がある場合 (未実装だが将来用)
         elif "raw_amount" in df.columns:
-             df = df.with_columns([
-                clean_num_str("raw_amount").alias("amount"),
-                clean_num_str("raw_balance").alias("balance")
-            ])
+            df = df.with_columns(
+                [
+                    clean_num_str("raw_amount").alias("amount"),
+                    clean_num_str("raw_balance").alias("balance"),
+                ]
+            )
 
         # description (摘要) のリネーム
         df = df.with_columns(pl.col("raw_description").alias("description"))
@@ -109,11 +112,9 @@ class CleaningPipeline:
         date_col = pl.col("raw_date")
 
         # "YYYY年MM月DD日" -> "YYYY-MM-DD"
-        normalized_date = (
-            date_col
-            .str.replace(r"(\d{4})年(\d{1,2})月(\d{1,2})日", "$1-$2-$3")
-            .str.replace_all("/", "-")
-        )
+        normalized_date = date_col.str.replace(
+            r"(\d{4})年(\d{1,2})月(\d{1,2})日", "$1-$2-$3"
+        ).str.replace_all("/", "-")
 
         # パース実行
         # フォーマットが混在していると厄介だが、1つのファイル内では統一されていると仮定
@@ -121,11 +122,13 @@ class CleaningPipeline:
         # str.to_date で strict=False にして、失敗したら別のフォーマットを試すcoalesceを使う。
 
         df = df.with_columns(
-            pl.coalesce([
-                normalized_date.str.to_date("%Y-%m-%d", strict=False),
-                normalized_date.str.to_date("%Y/%m/%d", strict=False),
-                # 他のフォーマットがあれば追加
-            ]).alias("transaction_date")
+            pl.coalesce(
+                [
+                    normalized_date.str.to_date("%Y-%m-%d", strict=False),
+                    normalized_date.str.to_date("%Y/%m/%d", strict=False),
+                    # 他のフォーマットがあれば追加
+                ]
+            ).alias("transaction_date")
         )
 
         return df

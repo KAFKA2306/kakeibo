@@ -1,6 +1,9 @@
-import polars as pl
 from pathlib import Path
+
+import polars as pl
+
 from src.kakeibo.ports.parser import ParserPort
+
 
 class GenericCsvParser(ParserPort):
     def parse(self, file_path: Path, encoding: str) -> pl.DataFrame:
@@ -10,7 +13,9 @@ class GenericCsvParser(ParserPort):
         """
         # PolarsでCSV読み込み
         try:
-            df = pl.read_csv(file_path, encoding=encoding, has_header=True, infer_schema_length=0)
+            df = pl.read_csv(
+                file_path, encoding=encoding, has_header=True, infer_schema_length=0
+            )
         except Exception:
             # 失敗時はスキップ行数を変えるなどのリトライが必要かもしれないが、一旦シンプルに
             # 読み込みエラーの場合は空DFを返すかエラーを上げる
@@ -41,17 +46,24 @@ class GenericCsvParser(ParserPort):
         # 支払金額(出金)
         for col in ["支払総額", "支払金額", "出金", "Amount"]:
             if col in df.columns:
-                 # ここは "raw_withdrawal" か "raw_amount" か迷うが、
-                 # genericな場合、まずは raw_amount に入れて pipeline で処理分けするか、
-                 # ここで分岐する。
-                 # とりあえず raw_withdrawal 扱いにしておく (クレジットカード明細は基本出金のみなので)
-                 column_mapping[col] = "raw_withdrawal"
-                 break
+                # ここは "raw_withdrawal" か "raw_amount" か迷うが、
+                # genericな場合、まずは raw_amount に入れて pipeline で処理分けするか、
+                # ここで分岐する。
+                # とりあえず raw_withdrawal 扱いにしておく (クレジットカード明細は基本出金のみなので)
+                column_mapping[col] = "raw_withdrawal"
+                break
 
         # もしマッピングできればリネーム、なければ null列を追加
         df = df.rename(column_mapping)
 
-        expected_cols = ["raw_date", "raw_deposit", "raw_withdrawal", "raw_description", "raw_balance", "raw_memo"]
+        expected_cols = [
+            "raw_date",
+            "raw_deposit",
+            "raw_withdrawal",
+            "raw_description",
+            "raw_balance",
+            "raw_memo",
+        ]
 
         for col in expected_cols:
             if col not in df.columns:

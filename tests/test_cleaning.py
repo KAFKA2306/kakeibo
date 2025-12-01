@@ -1,5 +1,7 @@
 import polars as pl
+
 from src.kakeibo.domain.cleaning import CleaningPipeline
+
 
 def test_cleaning_pipeline_basic():
     pipeline = CleaningPipeline()
@@ -11,7 +13,7 @@ def test_cleaning_pipeline_basic():
         "raw_withdrawal": [None, "5,000"],
         "raw_description": ["給与", "スーパー"],
         "raw_balance": ["1,000,000", "995,000"],
-        "raw_memo": [None, "メモ"]
+        "raw_memo": [None, "メモ"],
     }
     df = pl.DataFrame(data)
 
