@@ -1,26 +1,27 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from pydantic import BaseModel
-from typing import List
 import shutil
-import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+from fastapi import FastAPI, File, UploadFile
+from pydantic import BaseModel
 
 from src.kakeibo.use_cases.process_file import ProcessFileUseCase
-from src.kakeibo.domain.models import Transaction
 
 app = FastAPI(title="Kakeibo API", description="API for processing bank statements")
+
 
 class ProcessResponse(BaseModel):
     message: str
     processed_files: int
 
+
 @app.get("/")
 def read_root():
     return {"message": "Kakeibo API is running"}
 
+
 @app.post("/process", response_model=ProcessResponse)
-async def process_files(files: List[UploadFile] = File(...)):
+async def process_files(files: list[UploadFile] = File(...)):
     """
     Upload and process bank statement files.
     """
@@ -49,10 +50,8 @@ async def process_files(files: List[UploadFile] = File(...)):
         # In a real Vercel app, we might return the JSON data or save to Supabase here.
         # For now, we just acknowledge processing.
 
-        return {
-            "message": "Processing complete",
-            "processed_files": success_count
-        }
+        return {"message": "Processing complete", "processed_files": success_count}
+
 
 # Vercel entry point
 # handler = app

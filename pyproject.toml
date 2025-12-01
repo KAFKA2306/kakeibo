@@ -1,28 +1,53 @@
-[tool.poetry]
+[project]
 name = "kakeibo"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modern kakeibo data processing system"
-authors = ["Jules"]
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Jules", email = "jules@example.com" }
+]
+dependencies = [
+    "polars>=0.19.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "typer[all]>=0.9.0",
+    "loguru>=0.7.0",
+    "rich>=13.0.0",
+    "chardet>=5.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-pydantic = "^2.0"
-pydantic-settings = "^2.0"
-polars = "^0.19.0"
-typer = {extras = ["all"], version = "^0.9.0"}
-loguru = "^0.7.0"
-rich = "^13.0.0"
-chardet = "^5.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.0"
-black = "^23.0"
-isort = "^5.0"
-mypy = "^1.0"
+[project.scripts]
+kakeibo = "kakeibo.cli:app"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+    "httpx>=0.24.0", # Useful for testing API
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade (modernize syntax)
+]
 
 [tool.mypy]
+python_version = "3.12"
 ignore_missing_imports = true
+strict = true
