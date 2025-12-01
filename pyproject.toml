@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "kakeibo"
+version = "0.1.0"
+description = "Modern kakeibo data processing system"
+authors = ["Jules"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^2.0"
+pydantic-settings = "^2.0"
+polars = "^0.19.0"
+typer = {extras = ["all"], version = "^0.9.0"}
+loguru = "^0.7.0"
+rich = "^13.0.0"
+chardet = "^5.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0"
+black = "^23.0"
+isort = "^5.0"
+mypy = "^1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+ignore_missing_imports = true
