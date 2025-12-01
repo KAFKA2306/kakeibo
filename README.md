@@ -15,26 +15,22 @@ This is a modern, clean architecture-based system for processing and analyzing b
 
 ## Installation
 
-This project uses `poetry` for dependency management.
+This project uses `uv` for dependency management.
 
 ```bash
-poetry install
+task install
 ```
 
 ## Usage
+
+This project uses `Taskfile` to manage common tasks.
 
 ### Process Files (CLI)
 
 To process bank statement files:
 
 ```bash
-python src/kakeibo/cli.py process /path/to/input_dir --output-dir /path/to/output_dir
-```
-
-Or a single file:
-
-```bash
-python src/kakeibo/cli.py process /path/to/file.csv
+task cli -- process /path/to/input_dir --output-dir /path/to/output_dir
 ```
 
 ### API Server
@@ -42,7 +38,18 @@ python src/kakeibo/cli.py process /path/to/file.csv
 To run the API server (compatible with Vercel):
 
 ```bash
-uvicorn src.kakeibo.api:app --reload
+task dev
+```
+
+### Development
+
+Common development tasks:
+
+```bash
+task test       # Run tests
+task lint       # Run linters
+task format     # Format code
+task typecheck  # Run static type checks
 ```
 
 ### Configuration
@@ -55,7 +62,7 @@ For Supabase integration, set:
 To see current configuration:
 
 ```bash
-python src/kakeibo/cli.py config
+task cli -- config
 ```
 
 ## Project Structure
