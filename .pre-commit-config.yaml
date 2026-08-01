@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: kakeibo-privacy-guard
+        name: kakeibo privacy guard
+        entry: python scripts/privacy_guard.py
+        language: system
+        pass_filenames: true
+        stages: [pre-commit]
