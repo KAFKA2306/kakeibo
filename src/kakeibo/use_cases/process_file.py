@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 from loguru import logger
@@ -7,7 +6,11 @@ from src.kakeibo.adapters.parsers.generic_csv import GenericCsvParser
 from src.kakeibo.adapters.parsers.sony import SonyBankParser
 from src.kakeibo.config import settings
 from src.kakeibo.domain.cleaning import CleaningPipeline
-from src.kakeibo.security import opaque_file_id, private_output_name
+from src.kakeibo.security import (
+    classify_input_name,
+    opaque_file_id,
+    private_output_name,
+)
 
 
 class ProcessFileUseCase:
@@ -52,7 +55,4 @@ class ProcessFileUseCase:
             return False
 
     def _identify_file_type(self, filename: str) -> str | None:
-        for type_name, pattern in settings.file_patterns.items():
-            if re.search(pattern, filename, re.IGNORECASE):
-                return type_name
-        return None
+        return classify_input_name(filename, settings.file_patterns)
