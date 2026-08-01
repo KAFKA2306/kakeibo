@@ -1,11 +1,67 @@
-*.ipynb
+# Python and tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials*
+secrets*
+
+# Personal finance data: never commit
+private/
+input/
+output/
+raw/
+data/
+exports/
+statements/
+transactions/
+backups/
+logs/
 *.csv
-*.txt
-*.png
+*.tsv
+*.xls
+*.xlsx
+*.ods
+*.ofx
+*.qfx
+*.qif
+*.mt940
+*.db
+*.sqlite
+*.sqlite3
 *.log
-*.cashe
-*.pyc
 
+# Generated reports and archives
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.pdf
+*.zip
+*.7z
+*.rar
 
-
-
+# Local notebooks and editor state
+*.ipynb
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
