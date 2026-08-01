@@ -25,6 +25,20 @@ def validate_upload_suffix(
     return normalized
 
 
+def classify_input_name(filename: str, patterns: dict[str, str]) -> str | None:
+    """Classify a statement without depending on its original private name."""
+    for type_name, pattern in patterns.items():
+        if re.search(pattern, filename, re.IGNORECASE):
+            return type_name
+
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".csv":
+        return "generic"
+    if suffix == ".txt":
+        return "sony"
+    return None
+
+
 def opaque_file_id(file_path: Path) -> str:
     """Create a stable log identifier without exposing a path or filename."""
     return hashlib.sha256(
