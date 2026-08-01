@@ -6,8 +6,14 @@ tasks:
     cmds:
       - uv sync
 
+  privacy:
+    desc: Reject secrets and personal finance artifacts
+    cmds:
+      - uv run python scripts/privacy_guard.py --all-files
+
   test:
     desc: Run tests
+    deps: [privacy]
     cmds:
       - uv run pytest
 
@@ -26,6 +32,10 @@ tasks:
     desc: Run static type checks
     cmds:
       - uv run mypy src/
+
+  check:
+    desc: Run privacy, lint, type and test gates
+    deps: [privacy, lint, typecheck, test]
 
   dev:
     desc: Run the API server in development mode

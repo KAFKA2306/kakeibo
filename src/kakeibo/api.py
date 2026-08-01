@@ -1,13 +1,22 @@
-import shutil
+import secrets
 import tempfile
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel
 
+from src.kakeibo.config import settings
+from src.kakeibo.security import UnsafeUploadName, validate_upload_suffix
 from src.kakeibo.use_cases.process_file import ProcessFileUseCase
 
-app = FastAPI(title="Kakeibo API", description="API for processing bank statements")
+app = FastAPI(
+    title="Kakeibo API",
+    description="Private bank statement processing endpoint",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 
 
 class ProcessResponse(BaseModel):
@@ -15,43 +24,82 @@ class ProcessResponse(BaseModel):
     processed_files: int
 
 
+def require_api_key(
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> None:
+    if not settings.api_ready or settings.api_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Processing endpoint is disabled",
+        )
+
+    expected = settings.api_token.get_secret_value()
+    if x_api_key is None or not secrets.compare_digest(x_api_key, expected):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+        )
+
+
+async def _save_request_limited(request: Request, destination: Path) -> None:
+    total = 0
+    try:
+        with destination.open("xb") as buffer:
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > settings.max_upload_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="Upload exceeds the configured size limit",
+                    )
+                buffer.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+
+    if total == 0:
+        destination.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Request body is empty",
+        )
+
+
 @app.get("/")
-def read_root():
-    return {"message": "Kakeibo API is running"}
+def read_root() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.post("/process", response_model=ProcessResponse)
-async def process_files(files: list[UploadFile] = File(...)):
-    """
-    Upload and process bank statement files.
-    """
+async def process_file(
+    request: Request,
+    x_file_suffix: Annotated[str | None, Header(alias="X-File-Suffix")],
+    _: Annotated[None, Depends(require_api_key)],
+) -> ProcessResponse:
+    try:
+        suffix = validate_upload_suffix(
+            x_file_suffix,
+            settings.allowed_upload_suffixes,
+        )
+    except UnsafeUploadName as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported upload",
+        ) from exc
+
     use_case = ProcessFileUseCase()
 
-    # Create a temporary directory for processing
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="kakeibo-private-") as temp_dir:
         temp_path = Path(temp_dir)
         input_dir = temp_path / "input"
         output_dir = temp_path / "output"
-        input_dir.mkdir()
+        input_dir.mkdir(mode=0o700)
 
-        saved_files = []
-        for file in files:
-            file_path = input_dir / file.filename
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            saved_files.append(file_path)
+        destination = input_dir / f"upload{suffix}"
+        await _save_request_limited(request, destination)
+        success = use_case.execute(destination, output_dir)
 
-        # Process files
-        success_count = 0
-        for file_path in saved_files:
-            if use_case.execute(file_path, output_dir):
-                success_count += 1
-
-        # In a real Vercel app, we might return the JSON data or save to Supabase here.
-        # For now, we just acknowledge processing.
-
-        return {"message": "Processing complete", "processed_files": success_count}
-
-
-# Vercel entry point
-# handler = app
+        return ProcessResponse(
+            message="Processing complete",
+            processed_files=int(success),
+        )

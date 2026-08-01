@@ -2,130 +2,87 @@
 
 **リポジトリ:** https://github.com/KAFKA2306/kakeibo
 
-銀行やカードの取引明細を読み込み、形式を正規化し、支出分析やAPI提供へつなげるPythonプロジェクトです。
+銀行やカードの取引明細をローカルで正規化する Python プロジェクトです。公開リポジトリにはコードと合成テストデータだけを置き、実明細・生成物・ログ・認証情報は Git の外側に隔離します。
 
-Polarsによる表データ処理、Pydanticによる入力検証、Typer CLI、FastAPI、Supabase接続用の構造を、Clean Architectureの層へ分けています。
+## プライバシー境界
 
-## できること
+- 実データの既定保存先は Git 管理外の `private/input`、`private/output`、`private/logs`
+- CSV、表計算、金融機関エクスポート、DB、画像、PDF、ログ、アーカイブ、秘密鍵、`.env` を `.gitignore` と privacy guard で拒否
+- pre-commit と GitHub Actions で、機微ファイル名・既知のトークン形式・高エントロピー認証情報・口座番号・カード番号・個人環境パスを検査
+- API は既定で無効。32文字以上のサーバー側トークンを設定した場合だけ処理可能
+- API は1リクエスト1ファイル、サイズ・拡張子を制限し、元ファイル名を受け取らず一時ディレクトリ内で処理
+- CLI の設定表示とアプリケーションログは秘密値、入力パス、元ファイル名、取引行を出力しない
 
-- 取引明細ファイルの読込
-- 列名、日付、金額、摘要の正規化
-- データ検証
-- 出力ディレクトリへの変換結果保存
-- CLIからのバッチ処理
-- FastAPIによる処理入口
-- Supabase Repository実装の差し替え
-
-実際に対応している銀行・ファイル形式は、`adapters/`配下の現在のParserを正としてください。
+詳細は [`SECURITY.md`](SECURITY.md) を参照してください。
 
 ## セットアップ
 
 ```bash
 task install
+cp .env.example .env
 ```
 
-このタスクは`uv`を使って依存関係を同期します。
+`.env` はコミットされません。API を使わない場合は `KAKEIBO_API_ENABLED=false` のままにしてください。
 
-## CLIで処理する
+## ローカル処理
 
 ```bash
-task cli -- process /path/to/input_dir --output-dir /path/to/output_dir
+task cli -- process private/input --output-dir private/output
 ```
 
-入力ファイルを元の場所で上書きせず、出力先を別ディレクトリへ指定してください。
+入力を上書きせず、匿名化された出力ファイル名で `private/output` に保存します。
 
-現在の設定を確認する場合:
+## API
 
-```bash
-task cli -- config
+API は fail-closed です。明示的に有効化する場合だけ、サーバー環境で次を設定します。
+
+```text
+KAKEIBO_API_ENABLED=true
+KAKEIBO_API_TOKEN=replace-with-at-least-32-random-characters
 ```
 
-## APIを起動する
+起動:
 
 ```bash
 task dev
 ```
 
-APIのURL、ポート、認証有無は現在のTaskfileと`src/kakeibo/api.py`を確認してください。
+`POST /process` は生のファイル本文を受け取り、`X-API-Key` と `X-File-Suffix: .csv` または `.txt` が必要です。ブラウザへトークンや Supabase Service Role Key を渡してはいけません。
 
-## 環境変数
+## 検査
 
-アプリ設定は`pydantic-settings`から読み込みます。アプリ固有の設定には`KAKEIBO_`接頭辞を使用します。
-
-Supabase接続例:
-
-```text
-SUPABASE_URL=...
-SUPABASE_KEY=...
+```bash
+task privacy
+task lint
+task typecheck
+task test
 ```
 
-- 秘密鍵をコミットしない
-- ブラウザへService Role Keyを渡さない
-- 本番と開発でプロジェクトを分ける
-- Row Level Securityを確認する
+全検査:
+
+```bash
+task check
+```
+
+GitHub Actions の `privacy` ジョブも、push と pull request のたびに同じ検査を実行します。
 
 ## 主な構成
 
 ```text
 src/kakeibo/
-├── domain/        # 取引・設定などのドメインモデル
-├── ports/         # Parser・Repositoryなどのインターフェース
-├── adapters/      # ファイル、DB、外部サービスの実装
+├── domain/        # 取引・検証モデル
+├── ports/         # Parser・Repositoryインターフェース
+├── adapters/      # ファイル・DB実装
 ├── use_cases/     # アプリケーション処理
-├── cli.py         # Typer CLI
-└── api.py         # FastAPI
+├── security.py    # ファイル名匿名化・アップロード検証
+├── cli.py
+└── api.py
+scripts/
+└── privacy_guard.py
 ```
 
-## アーキテクチャの考え方
+## Supabase
 
-```text
-入力ファイル・API・DB
-  → Adapter
-  → Port
-  → Use Case
-  → Domain Model
-  → 検証済み出力
-```
+Supabase を使用する場合、接続情報はサーバー環境変数だけに保存してください。RLS、最小権限、データ保持期間、削除手順、バックアップ、監査ログのマスキングを本番公開前に確認してください。
 
-銀行固有のCSV形式をドメイン処理へ直接埋め込まず、Parser Adapterへ閉じ込めます。
-
-## 開発コマンド
-
-```bash
-task test
-task lint
-task format
-task typecheck
-```
-
-すべての検査が成功しても、実際の銀行明細に含まれる全例外へ対応できるとは限りません。匿名化した実データのサンプルで確認してください。
-
-## 取引データの注意
-
-- 明細には氏名、口座番号、カード番号、店舗、生活履歴が含まれます
-- 元データ、ログ、テスト失敗時のダンプを公開しないでください
-- 金額の正負が銀行ごとに異なる場合があります
-- 返金、振替、立替、分割払い、外貨決済を区別してください
-- 同じ摘要でも別の取引先である可能性があります
-- 文字コードとタイムゾーンを保存してください
-
-## Supabase・Vercel
-
-リポジトリにはクラウド接続を想定した構造がありますが、「Cloud Ready」はデプロイ完了やセキュリティ確認済みを意味しません。
-
-本番公開前に次を確認してください。
-
-- 認証
-- RLS
-- 秘密情報
-- データ保持期間
-- バックアップ
-- 削除機能
-- ログの個人情報
-- アップロードサイズ制限
-
-## ライセンス・利用範囲
-
-ライセンスファイルが存在する場合はその内容を正としてください。個人金融データの処理は、利用者本人の許可されたデータに限定してください。
-
-**README最終監査:** 2026-08-01
+**README最終監査:** 2026-08-02

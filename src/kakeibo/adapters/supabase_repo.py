@@ -7,7 +7,7 @@ from src.kakeibo.ports.repository import TransactionRepositoryPort
 
 
 class SupabaseRepository(TransactionRepositoryPort):
-    def __init__(self, url: str | None = None, key: str | None = None):
+    def __init__(self, url: str | None = None, key: str | None = None) -> None:
         self.url = url or os.getenv("SUPABASE_URL")
         self.key = key or os.getenv("SUPABASE_KEY")
         self.client = None
@@ -18,30 +18,25 @@ class SupabaseRepository(TransactionRepositoryPort):
 
                 self.client = create_client(self.url, self.key)
             except ImportError:
-                logger.warning(
-                    "supabase-py not installed. Supabase integration disabled."
-                )
+                logger.warning("Supabase integration is unavailable")
         else:
-            logger.info("Supabase credentials not found. Skipping connection.")
+            logger.info("Supabase integration is disabled")
 
     def save_bulk(self, transactions: list[Transaction]) -> int:
         if not self.client:
-            logger.warning("Supabase client not initialized. Skipping save.")
+            logger.warning("Supabase client is not initialized")
             return 0
 
         if not transactions:
             return 0
 
-        data = [tx.model_dump(mode="json") for tx in transactions]
+        data = [transaction.model_dump(mode="json") for transaction in transactions]
 
         try:
-            # upsert using transaction_date + description + amount as composite key?
-            # Or just insert. For now, simple insert.
             response = self.client.table("transactions").upsert(data).execute()
-            # response.data contains the inserted rows
             count = len(response.data) if response.data else 0
-            logger.info(f"Saved {count} transactions to Supabase.")
+            logger.info("Saved {} transactions to Supabase", count)
             return count
-        except Exception as e:
-            logger.error(f"Failed to save to Supabase: {e}")
+        except Exception as exc:
+            logger.error("Supabase write failed error_type={}", type(exc).__name__)
             return 0
