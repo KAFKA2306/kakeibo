@@ -1,5 +1,6 @@
 name: Verify issue 5 and cleanup branch
 
+# One-time verification trigger: 2026-08-03
 on:
   push:
     branches: [main]
@@ -84,10 +85,12 @@ jobs:
           git rm .github/workflows/verify-issue-5-cleanup.yml
           git commit -m 'chore: remove issue 5 verification workflow [skip ci]'
           git push origin HEAD:main
-      - name: Close issue and delete merged branch
+      - name: Close issue and delete merged branches
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue close 5 --repo "$GITHUB_REPOSITORY" --reason completed \
             --comment 'Implemented explicit statement type dispatch for API and CLI, rejected unsupported type/suffix combinations, removed arbitrary TXT-to-Sony fallback, and passed privacy, lint, typecheck, and test gates.'
-          git push origin --delete agent/fix-explicit-statement-type || true
+          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification; do
+            git push origin --delete "$branch" || true
+          done
