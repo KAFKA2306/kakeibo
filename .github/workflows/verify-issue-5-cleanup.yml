@@ -1,6 +1,6 @@
 name: Verify issue 5 and cleanup branch
 
-# One-time verification trigger: 2026-08-03-path-safe
+# One-time verification trigger: 2026-08-03-mypy-fixed
 on:
   push:
     branches: [main]
@@ -102,6 +102,6 @@ jobs:
         run: |
           gh issue close 5 --repo "$GITHUB_REPOSITORY" --reason completed \
             --comment 'Implemented explicit statement type dispatch for API and CLI, rejected unsupported type/suffix combinations, removed arbitrary TXT-to-Sony fallback, and passed privacy, lint, typecheck, and test gates.'
-          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification agent/fix-issue-5-verification agent/remove-workflow-path-leak; do
+          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification agent/fix-issue-5-verification agent/remove-workflow-path-leak agent/fix-mypy-baseline; do
             git push origin --delete "$branch" || true
           done
