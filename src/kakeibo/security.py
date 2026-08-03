@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from uuid import uuid4
 
+from src.kakeibo.statement_types import infer_statement_type
+
 _SAFE_SUFFIX = re.compile(r"^\.[a-z0-9]{1,8}$")
 
 
@@ -25,18 +27,10 @@ def validate_upload_suffix(
     return normalized
 
 
-def classify_input_name(filename: str, patterns: dict[str, str]) -> str | None:
-    """Classify a statement without depending on its original private name."""
-    for type_name, pattern in patterns.items():
-        if re.search(pattern, filename, re.IGNORECASE):
-            return type_name
-
-    suffix = Path(filename).suffix.lower()
-    if suffix == ".csv":
-        return "generic"
-    if suffix == ".txt":
-        return "sony"
-    return None
+def classify_input_name(filename: str, patterns: dict[str, str] | None = None) -> str | None:
+    """Infer local CLI input type without treating arbitrary TXT as Sony Bank."""
+    del patterns
+    return infer_statement_type(filename)
 
 
 def opaque_file_id(file_path: Path) -> str:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import secrets
 import tempfile
 from pathlib import Path
@@ -7,7 +9,11 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel
 
 from src.kakeibo.config import settings
-from src.kakeibo.security import UnsafeUploadName, validate_upload_suffix
+from src.kakeibo.statement_types import (
+    InvalidStatementSuffix,
+    UnknownStatementType,
+    statement_spec,
+)
 from src.kakeibo.use_cases.process_file import ProcessFileUseCase
 
 app = FastAPI(
@@ -22,6 +28,7 @@ app = FastAPI(
 class ProcessResponse(BaseModel):
     message: str
     processed_files: int
+    statement_type: str
 
 
 def require_api_key(
@@ -74,17 +81,20 @@ def read_root() -> dict[str, str]:
 async def process_file(
     request: Request,
     x_file_suffix: Annotated[str | None, Header(alias="X-File-Suffix")],
+    x_statement_type: Annotated[str | None, Header(alias="X-Statement-Type")],
     _: Annotated[None, Depends(require_api_key)],
 ) -> ProcessResponse:
     try:
-        suffix = validate_upload_suffix(
-            x_file_suffix,
-            settings.allowed_upload_suffixes,
-        )
-    except UnsafeUploadName as exc:
+        spec = statement_spec(x_statement_type, x_file_suffix)
+    except UnknownStatementType as exc:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Unsupported upload",
+            detail="Unsupported statement type",
+        ) from exc
+    except InvalidStatementSuffix as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Statement type and suffix are incompatible",
         ) from exc
 
     use_case = ProcessFileUseCase()
@@ -95,11 +105,21 @@ async def process_file(
         output_dir = temp_path / "output"
         input_dir.mkdir(mode=0o700)
 
-        destination = input_dir / f"upload{suffix}"
+        destination = input_dir / f"upload{spec.allowed_suffixes[0]}"
         await _save_request_limited(request, destination)
-        success = use_case.execute(destination, output_dir)
+        success = use_case.execute(
+            destination,
+            output_dir,
+            source_type=spec.name,
+        )
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Statement processing failed",
+            )
 
         return ProcessResponse(
             message="Processing complete",
-            processed_files=int(success),
+            processed_files=1,
+            statement_type=spec.name,
         )

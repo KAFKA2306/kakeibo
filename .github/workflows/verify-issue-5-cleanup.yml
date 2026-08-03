@@ -1,0 +1,93 @@
+name: Verify issue 5 and cleanup branch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-issue-5-cleanup.yml
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  verify-and-cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked environment
+        run: uv sync --frozen
+      - name: Run all quality gates and persist logs
+        run: |
+          set +e
+          uv run python scripts/privacy_guard.py --all-files > /tmp/privacy.log 2>&1
+          privacy=$?
+          uv run ruff check . > /tmp/ruff.log 2>&1
+          ruff=$?
+          uv run mypy src/ > /tmp/mypy.log 2>&1
+          mypy=$?
+          uv run pytest > /tmp/pytest.log 2>&1
+          pytest_status=$?
+          set -e
+          for file in privacy ruff mypy pytest; do echo "===== $file ====="; cat "/tmp/$file.log"; done
+          PRIVACY="$privacy" RUFF="$ruff" MYPY="$mypy" PYTEST_STATUS="$pytest_status" python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          codes = {
+              'privacy': int(os.environ['PRIVACY']),
+              'ruff': int(os.environ['RUFF']),
+              'mypy': int(os.environ['MYPY']),
+              'pytest': int(os.environ['PYTEST_STATUS']),
+          }
+          payload = {
+              'schema_version': 1,
+              'issue': 5,
+              'generated_at': datetime.now(timezone.utc).isoformat(),
+              'status': 'passed' if all(code == 0 for code in codes.values()) else 'failed',
+              'exit_codes': codes,
+              'logs': {
+                  name: Path(f'/tmp/{name}.log').read_text(encoding='utf-8', errors='replace')[-12000:]
+                  for name in codes
+              },
+          }
+          Path('/tmp/issue-5-verification.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+      - name: Publish audit evidence
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p audit
+          cp /tmp/issue-5-verification.json audit/issue-5-verification.json
+          git add audit/issue-5-verification.json
+          git commit -m 'test: record issue 5 verification evidence [skip ci]' || true
+          git push origin HEAD:main
+      - name: Require all gates to pass
+        run: python -c "import json,sys; data=json.load(open('audit/issue-5-verification.json')); sys.exit(0 if data['status']=='passed' else 1)"
+      - name: Remove one-time workflow
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          git rm .github/workflows/verify-issue-5-cleanup.yml
+          git commit -m 'chore: remove issue 5 verification workflow [skip ci]'
+          git push origin HEAD:main
+      - name: Close issue and delete merged branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue close 5 --repo "$GITHUB_REPOSITORY" --reason completed \
+            --comment 'Implemented explicit statement type dispatch for API and CLI, rejected unsupported type/suffix combinations, removed arbitrary TXT-to-Sony fallback, and passed privacy, lint, typecheck, and test gates.'
+          git push origin --delete agent/fix-explicit-statement-type || true
