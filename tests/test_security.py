@@ -27,8 +27,8 @@ def test_private_names_do_not_expose_input_name() -> None:
     assert opaque_file_id(source) != source.name
 
 
-def test_anonymous_upload_names_still_select_a_parser() -> None:
+def test_anonymous_upload_names_do_not_invent_a_bank_type() -> None:
     patterns = {"transaction": r"transaction-history\.csv$"}
     assert classify_input_name("upload.csv", patterns) == "generic"
-    assert classify_input_name("upload.txt", patterns) == "sony"
+    assert classify_input_name("upload.txt", patterns) is None
     assert classify_input_name("upload.exe", patterns) is None

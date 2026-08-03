@@ -60,7 +60,10 @@ ALLOWED_PATHS = {
     ".env.example",
     "scripts/privacy_guard.py",
 }
-CONTENT_SCAN_EXEMPT = {"scripts/privacy_guard.py"}
+# Generated dependency locks contain checksums and registry metadata that can
+# coincidentally pass the Luhn test. The lock remains path-scanned and size-
+# scanned, but its generated content is not treated as a financial statement.
+CONTENT_SCAN_EXEMPT = {"scripts/privacy_guard.py", "uv.lock"}
 
 SECRET_PATTERNS = (
     (
@@ -116,8 +119,7 @@ def _run_git(*args: str) -> list[str]:
         ["git", *args],
         cwd=ROOT,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     return [item for item in result.stdout.split("\0") if item]

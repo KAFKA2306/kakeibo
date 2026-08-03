@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from src.kakeibo.adapters.parsers.generic_csv import GenericCsvParser
 from src.kakeibo.adapters.parsers.profiled_csv import (
@@ -89,7 +89,10 @@ def normalize_suffix(value: str | None) -> str:
     return normalized
 
 
-def statement_spec(statement_type: str | None, suffix: str | None) -> StatementTypeSpec:
+def statement_spec(
+    statement_type: str | None,
+    suffix: str | None,
+) -> StatementTypeSpec:
     normalized_type = normalize_statement_type(statement_type)
     normalized_suffix = normalize_suffix(suffix)
     spec = STATEMENT_TYPES[normalized_type]

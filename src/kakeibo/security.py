@@ -27,7 +27,10 @@ def validate_upload_suffix(
     return normalized
 
 
-def classify_input_name(filename: str, patterns: dict[str, str] | None = None) -> str | None:
+def classify_input_name(
+    filename: str,
+    patterns: dict[str, str] | None = None,
+) -> str | None:
     """Infer local CLI input type without treating arbitrary TXT as Sony Bank."""
     del patterns
     return infer_statement_type(filename)

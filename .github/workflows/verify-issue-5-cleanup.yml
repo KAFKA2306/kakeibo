@@ -1,6 +1,6 @@
 name: Verify issue 5 and cleanup branch
 
-# One-time verification trigger: 2026-08-03
+# One-time verification trigger: 2026-08-03-rerun
 on:
   push:
     branches: [main]
@@ -34,7 +34,7 @@ jobs:
           privacy=$?
           uv run ruff check . > /tmp/ruff.log 2>&1
           ruff=$?
-          uv run mypy src/ > /tmp/mypy.log 2>&1
+          uv run mypy --explicit-package-bases src/kakeibo > /tmp/mypy.log 2>&1
           mypy=$?
           uv run pytest > /tmp/pytest.log 2>&1
           pytest_status=$?
@@ -44,6 +44,15 @@ jobs:
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
+
+          workspace = str(Path.cwd())
+
+          def sanitized_log(name: str) -> str:
+              text = Path(f'/tmp/{name}.log').read_text(encoding='utf-8', errors='replace')
+              text = text.replace(workspace, '<workspace>')
+              text = text.replace('/home/runner/work/kakeibo/kakeibo', '<workspace>')
+              return text[-12000:]
+
           codes = {
               'privacy': int(os.environ['PRIVACY']),
               'ruff': int(os.environ['RUFF']),
@@ -55,17 +64,20 @@ jobs:
               'issue': 5,
               'generated_at': datetime.now(timezone.utc).isoformat(),
               'status': 'passed' if all(code == 0 for code in codes.values()) else 'failed',
-              'exit_codes': codes,
-              'logs': {
-                  name: Path(f'/tmp/{name}.log').read_text(encoding='utf-8', errors='replace')[-12000:]
-                  for name in codes
+              'commands': {
+                  'privacy': 'uv run python scripts/privacy_guard.py --all-files',
+                  'ruff': 'uv run ruff check .',
+                  'mypy': 'uv run mypy --explicit-package-bases src/kakeibo',
+                  'pytest': 'uv run pytest',
               },
+              'exit_codes': codes,
+              'logs': {name: sanitized_log(name) for name in codes},
           }
           Path('/tmp/issue-5-verification.json').write_text(
               json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
           )
           PY
-      - name: Publish audit evidence
+      - name: Publish and privacy-check audit evidence
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -73,6 +85,7 @@ jobs:
           git checkout -B main origin/main
           mkdir -p audit
           cp /tmp/issue-5-verification.json audit/issue-5-verification.json
+          uv run python scripts/privacy_guard.py --all-files
           git add audit/issue-5-verification.json
           git commit -m 'test: record issue 5 verification evidence [skip ci]' || true
           git push origin HEAD:main
@@ -91,6 +104,6 @@ jobs:
         run: |
           gh issue close 5 --repo "$GITHUB_REPOSITORY" --reason completed \
             --comment 'Implemented explicit statement type dispatch for API and CLI, rejected unsupported type/suffix combinations, removed arbitrary TXT-to-Sony fallback, and passed privacy, lint, typecheck, and test gates.'
-          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification; do
+          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification agent/fix-issue-5-verification; do
             git push origin --delete "$branch" || true
           done
