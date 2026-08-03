@@ -32,6 +32,25 @@ class Settings(BaseSettings):
     )
     allowed_upload_suffixes: tuple[str, ...] = (".csv", ".txt")
 
+    # Compatibility snapshots derived from the canonical registry. Processing
+    # code does not use these dictionaries for dispatch.
+    file_patterns: dict[str, str] = {
+        name: spec.filename_pattern.pattern
+        for name, spec in STATEMENT_TYPES.items()
+        if spec.filename_pattern is not None
+    }
+    default_encodings: dict[str, str] = {
+        name: spec.encoding for name, spec in STATEMENT_TYPES.items()
+    }
+    fallback_encodings: list[str] = [
+        "utf-8-sig",
+        "utf-8",
+        "shift_jis",
+        "cp932",
+        "euc-jp",
+        "iso-2022-jp",
+    ]
+
     @property
     def api_ready(self) -> bool:
         if not self.api_enabled or self.api_token is None:
