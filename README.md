@@ -30,7 +30,21 @@ cp .env.example .env
 task cli -- process private/input --output-dir private/output
 ```
 
-入力を上書きせず、匿名化された出力ファイル名で `private/output` に保存します。
+CLIはローカルの元ファイル名からstatement typeを推定しますが、推定後はAPIと同じ`StatementTypeSpec`と`ProcessingPlan`を使用します。任意の`.txt`をSony Bank形式とは扱いません。既知パターンに一致しないCSVだけが明示的な`generic`へ分類されます。
+
+## Statement type registry
+
+正準定義は`src/kakeibo/statement_types.py`です。
+
+| type | suffix | encoding | parser |
+|---|---|---|---|
+| `sony` | `.txt` | `utf-8-sig` | `SonyBankParser` |
+| `enavi` | `.csv` | `utf-8-sig` | `EnaviCsvParser` |
+| `aplus` | `.csv` | `utf-8-sig` | `AplusCsvParser` |
+| `transaction` | `.csv` | `utf-8` | `TransactionHistoryCsvParser` |
+| `generic` | `.csv` | `shift_jis` | `GenericCsvParser` |
+
+未知type、未登録Parser、typeとsuffixの不一致は処理前に拒否されます。既知typeをgenericへ暗黙fallbackしません。
 
 ## API
 
@@ -47,7 +61,25 @@ KAKEIBO_API_TOKEN=replace-with-at-least-32-random-characters
 task dev
 ```
 
-`POST /process` は生のファイル本文を受け取り、`X-API-Key` と `X-File-Suffix: .csv` または `.txt` が必要です。ブラウザへトークンや Supabase Service Role Key を渡してはいけません。
+`POST /process` は生のファイル本文を受け取り、次のヘッダーを必須とします。
+
+```text
+X-API-Key: <server token>
+X-File-Suffix: .csv | .txt
+X-Statement-Type: sony | enavi | aplus | transaction | generic
+```
+
+例:
+
+```bash
+curl -X POST http://127.0.0.1:8000/process \
+  -H "X-API-Key: $KAKEIBO_API_TOKEN" \
+  -H "X-File-Suffix: .csv" \
+  -H "X-Statement-Type: transaction" \
+  --data-binary @private/input/transaction-history.csv
+```
+
+元ファイル名はHTTPへ送らず、サーバーでは`upload.csv`または`upload.txt`という匿名一時名だけを使用します。Parserとencodingは`X-Statement-Type`から決まり、一時名から再推定しません。ブラウザへトークンやSupabase Service Role Keyを渡してはいけません。
 
 ## 検査
 
@@ -64,17 +96,18 @@ task test
 task check
 ```
 
-GitHub Actions の `privacy` ジョブも、push と pull request のたびに同じ検査を実行します。
+回帰テストは、API/CLIの処理plan一致、`enavi`と`transaction`の明示dispatch、SonyとCSVの不正組合せ、未知type、任意TXTの誤認防止、レスポンスへの元ファイル名・取引本文の非露出を確認します。
 
 ## 主な構成
 
 ```text
 src/kakeibo/
-├── domain/        # 取引・検証モデル
-├── ports/         # Parser・Repositoryインターフェース
-├── adapters/      # ファイル・DB実装
-├── use_cases/     # アプリケーション処理
-├── security.py    # ファイル名匿名化・アップロード検証
+├── domain/             # 取引・検証モデル
+├── ports/              # Parser・Repositoryインターフェース
+├── adapters/parsers/   # 明示的な金融機関・形式Parser
+├── use_cases/          # アプリケーション処理
+├── statement_types.py  # type / suffix / encoding / Parserの正準registry
+├── security.py         # ファイル名匿名化・アップロード検証
 ├── cli.py
 └── api.py
 scripts/
@@ -85,4 +118,4 @@ scripts/
 
 Supabase を使用する場合、接続情報はサーバー環境変数だけに保存してください。RLS、最小権限、データ保持期間、削除手順、バックアップ、監査ログのマスキングを本番公開前に確認してください。
 
-**README最終監査:** 2026-08-02
+**README最終監査:** 2026-08-03
