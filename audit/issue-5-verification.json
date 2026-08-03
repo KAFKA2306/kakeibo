@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "issue": 5,
+  "generated_at": "2026-08-03T04:08:01.193308+00:00",
+  "status": "failed",
+  "commands": {
+    "privacy": "uv run python scripts/privacy_guard.py --all-files",
+    "ruff": "uv run ruff check .",
+    "mypy": "uv run mypy --explicit-package-bases src/kakeibo",
+    "pytest": "uv run pytest"
+  },
+  "exit_codes": {
+    "privacy": 0,
+    "ruff": 0,
+    "mypy": 1,
+    "pytest": 0
+  },
+  "logs": {
+    "privacy": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\nPrivacy guard passed\n",
+    "ruff": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\nAll checks passed!\n",
+    "mypy": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\nsrc/kakeibo/domain/cleaning.py:57: error: Function is missing a type annotation  [no-untyped-def]\nsrc/kakeibo/domain/cleaning.py:70: error: Call to untyped function \"clean_num_str\" in typed context  [no-untyped-call]\nsrc/kakeibo/domain/cleaning.py:71: error: Call to untyped function \"clean_num_str\" in typed context  [no-untyped-call]\nsrc/kakeibo/domain/cleaning.py:72: error: Call to untyped function \"clean_num_str\" in typed context  [no-untyped-call]\nsrc/kakeibo/domain/cleaning.py:89: error: Call to untyped function \"clean_num_str\" in typed context  [no-untyped-call]\nsrc/kakeibo/domain/cleaning.py:90: error: Call to untyped function \"clean_num_str\" in typed context  [no-untyped-call]\nsrc/kakeibo/adapters/parsers/sony.py:53: error: Missing type parameters for generic type \"dict\"  [type-arg]\nsrc/kakeibo/adapters/parsers/sony.py:70: error: Incompatible types in assignment (expression has type \"str | Any\", target has type \"None\")  [assignment]\nsrc/kakeibo/adapters/parsers/sony.py:76: error: Incompatible types in assignment (expression has type \"str | Any\", target has type \"None\")  [assignment]\nsrc/kakeibo/adapters/parsers/sony.py:86: error: Incompatible types in assignment (expression has type \"str\", target has type \"None\")  [assignment]\nsrc/kakeibo/adapters/parsers/sony.py:93: error: Incompatible types in assignment (expression has type \"str | Any\", target has type \"None\")  [assignment]\nsrc/kakeibo/adapters/parsers/sony.py:95: error: Incompatible types in assignment (expression has type \"str | Any\", target has type \"None\")  [assignment]\nsrc/kakeibo/adapters/parsers/sony.py:98: error: Incompatible types in assignment (expression has type \"str\", target has type \"None\")  [assignment]\nFound 13 errors in 2 files (checked 20 source files)\n",
+    "pytest": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-9.0.1, pluggy-1.6.0\nrootdir: <workspace>\nconfigfile: pyproject.toml\nplugins: anyio-4.12.0\ncollected 18 items\n\ntests/test_cleaning.py .                                                 [  5%]\ntests/test_security.py .......                                           [ 44%]\ntests/test_statement_types.py ..........                                 [100%]\n\n============================== 18 passed in 1.62s ==============================\n"
+  }
+}
