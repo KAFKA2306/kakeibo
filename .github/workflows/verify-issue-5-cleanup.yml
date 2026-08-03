@@ -1,6 +1,6 @@
 name: Verify issue 5 and cleanup branch
 
-# One-time verification trigger: 2026-08-03-rerun
+# One-time verification trigger: 2026-08-03-path-safe
 on:
   push:
     branches: [main]
@@ -49,9 +49,7 @@ jobs:
 
           def sanitized_log(name: str) -> str:
               text = Path(f'/tmp/{name}.log').read_text(encoding='utf-8', errors='replace')
-              text = text.replace(workspace, '<workspace>')
-              text = text.replace('/home/runner/work/kakeibo/kakeibo', '<workspace>')
-              return text[-12000:]
+              return text.replace(workspace, '<workspace>')[-12000:]
 
           codes = {
               'privacy': int(os.environ['PRIVACY']),
@@ -104,6 +102,6 @@ jobs:
         run: |
           gh issue close 5 --repo "$GITHUB_REPOSITORY" --reason completed \
             --comment 'Implemented explicit statement type dispatch for API and CLI, rejected unsupported type/suffix combinations, removed arbitrary TXT-to-Sony fallback, and passed privacy, lint, typecheck, and test gates.'
-          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification agent/fix-issue-5-verification; do
+          for branch in agent/fix-explicit-statement-type ops/trigger-issue-5-verification agent/fix-issue-5-verification agent/remove-workflow-path-leak; do
             git push origin --delete "$branch" || true
           done
