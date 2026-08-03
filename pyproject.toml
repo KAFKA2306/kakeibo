@@ -46,8 +46,10 @@ select = [
     "I",  # isort
     "UP", # pyupgrade (modernize syntax)
 ]
+ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
 ignore_missing_imports = true
 strict = true
+explicit_package_bases = true
