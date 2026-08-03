@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from src.kakeibo.statement_types import STATEMENT_TYPES
 
 
 class Settings(BaseSettings):
@@ -28,31 +32,6 @@ class Settings(BaseSettings):
     )
     allowed_upload_suffixes: tuple[str, ...] = (".csv", ".txt")
 
-    file_patterns: dict[str, str] = {
-        "sony": r"sony_.*\.txt$",
-        "enavi": r"enavi\d{6}\(\d+\)\.csv$",
-        "aplus": r"aplus_meisai_\d+_\d{6}\.csv$",
-        "generic": r"\d{6}\.csv$",
-        "transaction": r"transaction-history\.csv$",
-    }
-
-    default_encodings: dict[str, str] = {
-        "sony": "utf-8-sig",
-        "enavi": "utf-8-sig",
-        "aplus": "utf-8-sig",
-        "generic": "shift_jis",
-        "transaction": "utf-8",
-    }
-
-    fallback_encodings: list[str] = [
-        "utf-8-sig",
-        "utf-8",
-        "shift_jis",
-        "cp932",
-        "euc-jp",
-        "iso-2022-jp",
-    ]
-
     @property
     def api_ready(self) -> bool:
         if not self.api_enabled or self.api_token is None:
@@ -61,6 +40,13 @@ class Settings(BaseSettings):
 
     def public_snapshot(self) -> dict[str, object]:
         """Return non-sensitive operational settings for CLI diagnostics."""
+        statement_contracts = {
+            name: {
+                "allowed_suffixes": spec.allowed_suffixes,
+                "encoding": spec.encoding,
+            }
+            for name, spec in STATEMENT_TYPES.items()
+        }
         return {
             "input_dir": self.input_dir.name,
             "output_dir": self.output_dir.name,
@@ -69,6 +55,7 @@ class Settings(BaseSettings):
             "api_ready": self.api_ready,
             "max_upload_bytes": self.max_upload_bytes,
             "allowed_upload_suffixes": self.allowed_upload_suffixes,
+            "statement_contracts": statement_contracts,
         }
 
 
