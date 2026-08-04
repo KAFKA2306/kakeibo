@@ -24,6 +24,33 @@ cp .env.example .env
 
 `.env` はコミットされません。API を使わない場合は `KAKEIBO_API_ENABLED=false` のままにしてください。
 
+## ローカルImport Review UI
+
+保存前にparser契約、集計値、保存先、hashを確認するローカル専用UIです。
+
+```bash
+task review
+```
+
+ポートを変更する場合:
+
+```bash
+task review -- --port 8876
+```
+
+起動先は `http://127.0.0.1:<port>` に固定されます。外部CDN、外部API、CORS、外部送信は使用しません。
+
+処理順序は次のとおりです。
+
+1. ブラウザ内で選択したファイルから拡張子だけを取得し、元ファイル名はHTTPへ送信しない
+2. 選択したstatement typeとsuffixを正準`StatementTypeSpec`で照合し、不一致をparser実行前に拒否する
+3. 正準parserと`CleaningPipeline`で処理し、parser、encoding、入力SHA-256、件数、除外件数、期間、金額合計、予定保存先だけを表示する
+4. 保存先の完全一致と明示確認を要求する
+5. 保存直前に入力SHA-256と集計hashを再検証する
+6. 匿名一時名へ出力後、CSVを再読込して件数と金額合計を検算し、一致した場合だけ確定する
+
+店名、摘要、メモ、個別明細はReview応答とCommit応答へ含めません。保存名は元ファイル名から生成せず、ランダムなprivate名を使用します。
+
 ## ローカル処理
 
 ```bash
@@ -96,7 +123,7 @@ task test
 task check
 ```
 
-回帰テストは、API/CLIの処理plan一致、`enavi`と`transaction`の明示dispatch、SonyとCSVの不正組合せ、未知type、任意TXTの誤認防止、レスポンスへの元ファイル名・取引本文の非露出を確認します。
+回帰テストは、API/CLIの処理plan一致、`enavi`と`transaction`の明示dispatch、SonyとCSVの不正組合せ、未知type、任意TXTの誤認防止、レスポンスへの元ファイル名・取引本文の非露出に加え、Import Reviewのtype/suffix拒否、保存先完全一致、明示確認、再読込検算、cancel、replay拒否を確認します。
 
 ## 主な構成
 
@@ -107,6 +134,7 @@ src/kakeibo/
 ├── adapters/parsers/   # 明示的な金融機関・形式Parser
 ├── use_cases/          # アプリケーション処理
 ├── statement_types.py  # type / suffix / encoding / Parserの正準registry
+├── import_review.py    # ローカル専用Review・保存・再読込検算
 ├── security.py         # ファイル名匿名化・アップロード検証
 ├── cli.py
 └── api.py
@@ -118,4 +146,4 @@ scripts/
 
 Supabase を使用する場合、接続情報はサーバー環境変数だけに保存してください。RLS、最小権限、データ保持期間、削除手順、バックアップ、監査ログのマスキングを本番公開前に確認してください。
 
-**README最終監査:** 2026-08-03
+**README最終監査:** 2026-08-04
