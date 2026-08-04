@@ -26,8 +26,8 @@ kakeibo = "kakeibo.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=7.0",
     "mypy>=1.0",
     "ruff>=0.1.0",
