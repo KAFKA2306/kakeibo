@@ -16,7 +16,11 @@ class CleaningPipeline:
             クリーンなデータ (Transactionモデルに対応するカラムを持つ)
         """
         df = df.with_columns(
-            [pl.col(column).str.strip_chars() for column in df.columns if df.schema[column] == pl.Utf8]
+            [
+                pl.col(column).str.strip_chars()
+                for column in df.columns
+                if df.schema[column] == pl.Utf8
+            ]
         )
         df = self._parse_amounts(df)
         df = self._parse_dates(df)

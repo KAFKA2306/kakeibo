@@ -38,9 +38,9 @@ def classify_input_name(
 
 def opaque_file_id(file_path: Path) -> str:
     """Create a stable log identifier without exposing a path or filename."""
-    return hashlib.sha256(
-        file_path.name.encode("utf-8", errors="replace")
-    ).hexdigest()[:12]
+    return hashlib.sha256(file_path.name.encode("utf-8", errors="replace")).hexdigest()[
+        :12
+    ]
 
 
 def private_output_name() -> str:
