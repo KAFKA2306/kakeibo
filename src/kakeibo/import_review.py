@@ -18,7 +18,11 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from src.kakeibo.config import Settings, settings
 from src.kakeibo.domain.cleaning import CleaningPipeline
 from src.kakeibo.security import private_output_name
-from src.kakeibo.statement_types import STATEMENT_TYPES, StatementTypeError, statement_spec
+from src.kakeibo.statement_types import (
+    STATEMENT_TYPES,
+    StatementTypeError,
+    statement_spec,
+)
 
 
 class ReviewRejected(ValueError):
@@ -113,28 +117,36 @@ class LocalImportService:
         self.staging_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.settings.output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    def _parse(self, session_path: Path, statement_type: str, suffix: str) -> tuple[object, pl.DataFrame, pl.DataFrame]:
+    def _parse(
+        self, session_path: Path, statement_type: str, suffix: str
+    ) -> tuple[object, pl.DataFrame, pl.DataFrame]:
         spec = statement_spec(statement_type, suffix)
         parser = spec.parser_factory()
         raw = parser.parse(session_path, spec.encoding)
         cleaned = self.cleaner.process(raw, statement_type)
         return parser, raw, cleaned
 
-    def review(self, body: bytes, statement_type: str | None, suffix: str | None) -> dict[str, object]:
+    def review(
+        self, body: bytes, statement_type: str | None, suffix: str | None
+    ) -> dict[str, object]:
         if not body:
             raise ReviewRejected("empty statement")
         if len(body) > self.settings.max_upload_bytes:
             raise ReviewRejected("statement exceeds local size limit")
 
         spec = statement_spec(statement_type, suffix)
-        normalized_suffix = spec.allowed_suffixes[0] if suffix is None else suffix.strip().lower()
+        normalized_suffix = (
+            spec.allowed_suffixes[0] if suffix is None else suffix.strip().lower()
+        )
         self._prepare_directories()
         token = secrets.token_urlsafe(24)
         staged_path = self.staging_dir / f"{token}{normalized_suffix}"
         _write_private(staged_path, body)
 
         try:
-            parser, raw, cleaned = self._parse(staged_path, spec.name, normalized_suffix)
+            parser, raw, cleaned = self._parse(
+                staged_path, spec.name, normalized_suffix
+            )
             aggregate = _aggregate(raw, cleaned)
             destination = (self.settings.output_dir / private_output_name()).resolve()
             session = ReviewSession(
@@ -173,7 +185,9 @@ class LocalImportService:
             "transaction_rows_included": False,
         }
 
-    def commit(self, review_token: str, destination: str, confirmed: bool) -> dict[str, object]:
+    def commit(
+        self, review_token: str, destination: str, confirmed: bool
+    ) -> dict[str, object]:
         if not confirmed:
             raise ReviewRejected("explicit confirmation is required")
         with self.lock:
@@ -195,14 +209,21 @@ class LocalImportService:
             if _aggregate_digest(aggregate) != session.aggregate_sha256:
                 raise ReviewRejected("review aggregate changed before commit")
 
-            temporary = session.destination.with_name(f".{session.destination.name}.tmp")
+            temporary = session.destination.with_name(
+                f".{session.destination.name}.tmp"
+            )
             temporary.unlink(missing_ok=True)
             cleaned.write_csv(temporary)
             temporary.chmod(0o600)
             written = pl.read_csv(temporary)
-            written_total_value = written.get_column("amount").sum() if written.height else 0
+            written_total_value = (
+                written.get_column("amount").sum() if written.height else 0
+            )
             written_total = int(written_total_value or 0)
-            if written.height != aggregate.output_rows or written_total != aggregate.amount_total:
+            if (
+                written.height != aggregate.output_rows
+                or written_total != aggregate.amount_total
+            ):
                 temporary.unlink(missing_ok=True)
                 raise ReviewRejected("post-write reconciliation failed")
             temporary.replace(session.destination)

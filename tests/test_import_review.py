@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from src.kakeibo.config import Settings
 from src.kakeibo.import_review import LocalImportService, create_app
 
-
 SYNTHETIC_STATEMENT = (
     b"Date,Description,Amount\n"
     b"2026-08-01,PRIVATE_MERCHANT_ALPHA,100\n"
@@ -88,7 +87,9 @@ def test_type_suffix_mismatch_is_rejected_before_parsing(tmp_path: Path) -> None
     assert response.json()["detail"] == "statement type and suffix are incompatible"
 
 
-def test_commit_requires_exact_destination_and_reconciles_output(tmp_path: Path) -> None:
+def test_commit_requires_exact_destination_and_reconciles_output(
+    tmp_path: Path,
+) -> None:
     client, app_settings = client_for(tmp_path)
     review_response = review_statement(client)
     review = review_response.json()
