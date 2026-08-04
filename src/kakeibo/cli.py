@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+import uvicorn
 from loguru import logger
 from rich.console import Console
 
@@ -49,6 +50,18 @@ def process(
 
     console.print(
         f"[bold green]Processed {success_count}/{len(files)} files.[/bold green]"
+    )
+
+
+@app.command()
+def review(port: int = typer.Option(8765, min=1024, max=65535)) -> None:
+    """Run the local-only Import Review UI on the loopback interface."""
+    console.print(f"Import Review: http://127.0.0.1:{port}")
+    uvicorn.run(
+        "src.kakeibo.import_review:app",
+        host="127.0.0.1",
+        port=port,
+        access_log=False,
     )
 
 
