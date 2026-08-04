@@ -36,6 +36,9 @@ jobs:
       - name: Verify lock and install
         run: uv sync --frozen
 
+      - name: Compile source and tests
+        run: uv run python -m compileall -q src tests
+
       - name: Privacy guard
         run: uv run python scripts/privacy_guard.py --all-files
 
