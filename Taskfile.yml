@@ -37,6 +37,11 @@ tasks:
     desc: Run privacy, lint, type and test gates
     deps: [privacy, lint, typecheck, test]
 
+  review:
+    desc: Run the local-only Import Review UI
+    cmds:
+      - uv run python src/kakeibo/cli.py review {{.CLI_ARGS}}
+
   dev:
     desc: Run the API server in development mode
     cmds:
