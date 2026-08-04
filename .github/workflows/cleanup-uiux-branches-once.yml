@@ -1,0 +1,25 @@
+name: Cleanup merged UIUX branches once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cleanup-uiux-branches-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  delete-merged-branches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Delete merged UIUX branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+          git push "$remote" --delete agent/uiux-2026-import-review
+          git push "$remote" --delete agent/cleanup-uiux-branches-once
