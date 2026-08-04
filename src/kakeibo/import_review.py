@@ -6,6 +6,7 @@ import os
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass
+from datetime import date
 from pathlib import Path
 from threading import Lock
 
@@ -71,6 +72,14 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _iso_date(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, date):
+        raise ReviewRejected("normalized transaction date is invalid")
+    return value.isoformat()
+
+
 def _aggregate(raw: pl.DataFrame, cleaned: pl.DataFrame) -> Aggregate:
     amount_value = cleaned.get_column("amount").sum() if cleaned.height else 0
     amount_total = int(amount_value or 0)
@@ -82,8 +91,8 @@ def _aggregate(raw: pl.DataFrame, cleaned: pl.DataFrame) -> Aggregate:
         output_rows=cleaned.height,
         dropped_rows=raw.height - cleaned.height,
         amount_total=amount_total,
-        date_min=date_min_value.isoformat() if date_min_value is not None else None,
-        date_max=date_max_value.isoformat() if date_max_value is not None else None,
+        date_min=_iso_date(date_min_value),
+        date_max=_iso_date(date_max_value),
     )
 
 
