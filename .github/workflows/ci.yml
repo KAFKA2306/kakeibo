@@ -51,5 +51,8 @@ jobs:
       - name: Mypy
         run: uv run mypy src/
 
+      - name: Import review safety tests
+        run: uv run pytest tests/test_import_review.py
+
       - name: Tests
         run: uv run pytest
