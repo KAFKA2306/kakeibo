@@ -60,9 +60,22 @@ def snapshot_month(
     input_paths: list[Path] = typer.Argument(..., help="Normalized private CSV files"),
     fx_source: str = typer.Option(..., help="FX source URL or source identifier"),
     fx_retrieved_at: str = typer.Option(..., help="FX retrieval timestamp in ISO-8601"),
+    fx_rate: list[str] | None = typer.Option(
+        None,
+        "--fx-rate",
+        help="Repeatable PAIR=RATE evidence, for example USDJPY=147.25",
+    ),
     artifact_root: Path = typer.Option(Path("artifacts"), help="Private artifact root"),
 ) -> None:
     """Freeze hashes, FX provenance, and deterministic monthly totals."""
+    rates: dict[str, str] = {}
+    for item in fx_rate or []:
+        pair, separator, rate = item.partition("=")
+        if not separator or not pair.strip() or not rate.strip():
+            logger.error("Invalid FX rate evidence")
+            raise typer.Exit(code=1)
+        rates[pair.strip()] = rate.strip()
+
     try:
         result = build_monthly_snapshot(
             month=month,
@@ -70,6 +83,7 @@ def snapshot_month(
             artifact_root=artifact_root,
             fx_source=fx_source,
             fx_retrieved_at=fx_retrieved_at,
+            fx_rates=rates,
         )
     except (OSError, SnapshotError):
         logger.error("Monthly snapshot failed")
