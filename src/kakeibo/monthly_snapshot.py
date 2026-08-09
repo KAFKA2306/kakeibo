@@ -30,7 +30,15 @@ class MonthlyTotals:
 
 
 def _canonical_json(payload: object) -> bytes:
-    return (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    return (
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode()
 
 
 def _sha256(data: bytes) -> str:
@@ -103,7 +111,7 @@ def build_monthly_snapshot(
     except ValueError as exc:
         raise SnapshotError("fx_retrieved_at must be ISO-8601") from exc
 
-    inputs: list[dict[str, object]] = []
+    inputs: list[dict[str, str | int]] = []
     totals = MonthlyTotals(0, 0, 0, 0)
     for path in input_paths:
         digest, rows, item = _read_input(path, month)
@@ -125,6 +133,7 @@ def build_monthly_snapshot(
         "totals": totals.as_dict(),
     }
     aggregation_bytes = _canonical_json(aggregation)
+    aggregation_sha256 = _sha256(aggregation_bytes)
     metadata = {
         "schema_version": 1,
         "month": month,
@@ -134,7 +143,7 @@ def build_monthly_snapshot(
             "retrieved_at": fx_retrieved_at,
             "rates": dict(sorted((fx_rates or {}).items())),
         },
-        "aggregation_sha256": _sha256(aggregation_bytes),
+        "aggregation_sha256": aggregation_sha256,
     }
     metadata_bytes = _canonical_json(metadata)
 
@@ -144,6 +153,6 @@ def build_monthly_snapshot(
     (output_dir / "metadata.json").write_bytes(metadata_bytes)
     return {
         "output_dir": output_dir,
-        "aggregation_sha256": metadata["aggregation_sha256"],
+        "aggregation_sha256": aggregation_sha256,
         "metadata_sha256": _sha256(metadata_bytes),
     }
