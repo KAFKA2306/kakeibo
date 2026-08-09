@@ -110,6 +110,30 @@ curl -X POST http://127.0.0.1:8000/process \
 
 元ファイル名はHTTPへ送らず、サーバーでは`upload.csv`または`upload.txt`という匿名一時名だけを使用します。Parserとencodingは`X-Statement-Type`から決まり、一時名から再推定しません。ブラウザへトークンやSupabase Service Role Keyを渡してはいけません。
 
+## 月次スナップショットと再現
+
+正規化済みのprivate CSVから、入力SHA-256、対象月の集計結果、使用した為替レート、レート取得元、取得日時を `artifacts/YYYY-MM/` に固定します。`artifacts/` は実家計データ由来のためGit管理外です。
+
+```bash
+uv run kakeibo snapshot-month \
+  --month 2026-07 \
+  --fx-source "https://example.com/fx-source" \
+  --fx-retrieved-at "2026-08-10T00:00:00Z" \
+  --fx-rate USDJPY=147.25 \
+  private/output/<normalized.csv>
+```
+
+生成物:
+
+- `artifacts/2026-07/aggregation.json`: `transaction_count`、`inflow`、`outflow`、`net` を含む対象月集計
+- `artifacts/2026-07/metadata.json`: 入力ごとのSHA-256・行数、FX取得元・取得日時・レート、`aggregation.json` のSHA-256
+
+入力ファイル名、摘要、メモ、個別明細はmetadataへ保存しません。入力CSVは `CleaningPipeline` の正規化後schemaである `transaction_date` と `amount` を必須とし、日付は `YYYY-MM-DD`、金額は整数として検証します。異なる月の行は対象月集計へ入りません。
+
+再現確認は、同じ正規化CSVと同じFX証跡を使って再度 `snapshot-month` を実行し、CLIが出力する `snapshot_sha256` を比較します。CIでは `tests/test_monthly_snapshot.py` が同一入力を別ディレクトリへ2回生成し、`aggregation.json` と `metadata.json` がbyte単位で一致することを検証します。
+
+実CSVおよび `artifacts/` の生成物はGitへcommitしないでください。
+
 ## 検査
 
 ```bash
@@ -125,7 +149,7 @@ task test
 task check
 ```
 
-回帰テストは、API/CLIの処理plan一致、`enavi`と`transaction`の明示dispatch、SonyとCSVの不正組合せ、未知type、任意TXTの誤認防止、レスポンスへの元ファイル名・取引本文の非露出に加え、Import Reviewのtype/suffix拒否、保存先完全一致、明示確認、再読込検算、cancel、replay拒否を確認します。
+回帰テストは、API/CLIの処理plan一致、`enavi`と`transaction`の明示dispatch、SonyとCSVの不正組合せ、未知type、任意TXTの誤認防止、レスポンスへの元ファイル名・取引本文の非露出に加え、Import Reviewのtype/suffix拒否、保存先完全一致、明示確認、再読込検算、cancel、replay拒否、月次snapshotの決定論的再現を確認します。
 
 ## 主な構成
 
@@ -136,6 +160,7 @@ src/kakeibo/
 ├── adapters/parsers/   # 明示的な金融機関・形式Parser
 ├── use_cases/          # アプリケーション処理
 ├── statement_types.py  # type / suffix / encoding / Parserの正準registry
+├── monthly_snapshot.py # 月次入力hash・集計・FX証跡の決定論的snapshot
 ├── import_review.py    # ローカル専用Review・保存・再読込検算
 ├── security.py         # ファイル名匿名化・アップロード検証
 ├── cli.py
@@ -148,4 +173,4 @@ scripts/
 
 Supabase を使用する場合、接続情報はサーバー環境変数だけに保存してください。RLS、最小権限、データ保持期間、削除手順、バックアップ、監査ログのマスキングを本番公開前に確認してください。
 
-**README最終監査:** 2026-08-04
+**README最終監査:** 2026-08-10
