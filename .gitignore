@@ -35,6 +35,7 @@ statements/
 transactions/
 backups/
 logs/
+artifacts/
 *.csv
 *.tsv
 *.xls
