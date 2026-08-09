@@ -31,12 +31,7 @@ class MonthlyTotals:
 
 def _canonical_json(payload: object) -> bytes:
     return (
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         + "\n"
     ).encode()
 
