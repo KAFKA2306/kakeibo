@@ -74,7 +74,9 @@ def _read_input(path: Path, month: str) -> tuple[str, int, MonthlyTotals]:
             transaction_date = datetime.strptime(date_text, "%Y-%m-%d")
             amount = int(amount_text)
         except ValueError as exc:
-            raise SnapshotError("normalized CSV contains an invalid date or amount") from exc
+            raise SnapshotError(
+                "normalized CSV contains an invalid date or amount"
+            ) from exc
         if transaction_date.strftime("%Y-%m") != month:
             continue
         count += 1
