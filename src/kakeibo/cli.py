@@ -8,6 +8,7 @@ from loguru import logger
 from rich.console import Console
 
 from src.kakeibo.config import settings
+from src.kakeibo.monthly_snapshot import SnapshotError, build_monthly_snapshot
 from src.kakeibo.statement_types import StatementTypeError
 from src.kakeibo.use_cases.process_file import ProcessFileUseCase
 
@@ -51,6 +52,29 @@ def process(
     console.print(
         f"[bold green]Processed {success_count}/{len(files)} files.[/bold green]"
     )
+
+
+@app.command("snapshot-month")
+def snapshot_month(
+    month: str = typer.Option(..., help="Target month in YYYY-MM"),
+    input_paths: list[Path] = typer.Argument(..., help="Normalized private CSV files"),
+    fx_source: str = typer.Option(..., help="FX source URL or source identifier"),
+    fx_retrieved_at: str = typer.Option(..., help="FX retrieval timestamp in ISO-8601"),
+    artifact_root: Path = typer.Option(Path("artifacts"), help="Private artifact root"),
+) -> None:
+    """Freeze hashes, FX provenance, and deterministic monthly totals."""
+    try:
+        result = build_monthly_snapshot(
+            month=month,
+            input_paths=input_paths,
+            artifact_root=artifact_root,
+            fx_source=fx_source,
+            fx_retrieved_at=fx_retrieved_at,
+        )
+    except (OSError, SnapshotError):
+        logger.error("Monthly snapshot failed")
+        raise typer.Exit(code=1) from None
+    console.print(f"snapshot_sha256={result['metadata_sha256']}")
 
 
 @app.command()
