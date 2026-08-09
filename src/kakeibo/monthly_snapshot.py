@@ -111,18 +111,23 @@ def build_monthly_snapshot(
     inputs: list[dict[str, str | int]] = []
     totals = MonthlyTotals(0, 0, 0, 0)
     for path in input_paths:
-        digest, rows, item = _read_input(path, month)
+        digest, rows, monthly_totals = _read_input(path, month)
         inputs.append({"sha256": digest, "row_count": rows})
         totals = MonthlyTotals(
-            totals.transaction_count + item.transaction_count,
-            totals.inflow + item.inflow,
-            totals.outflow + item.outflow,
-            totals.net + item.net,
+            totals.transaction_count + monthly_totals.transaction_count,
+            totals.inflow + monthly_totals.inflow,
+            totals.outflow + monthly_totals.outflow,
+            totals.net + monthly_totals.net,
         )
 
-    inputs.sort(key=lambda item: (str(item["sha256"]), int(item["row_count"])))
-    for index, item in enumerate(inputs, start=1):
-        item["input_id"] = f"input-{index:03d}"
+    inputs.sort(
+        key=lambda input_evidence: (
+            str(input_evidence["sha256"]),
+            int(input_evidence["row_count"]),
+        )
+    )
+    for index, input_evidence in enumerate(inputs, start=1):
+        input_evidence["input_id"] = f"input-{index:03d}"
 
     aggregation = {
         "schema_version": 1,
