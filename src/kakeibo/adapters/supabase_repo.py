@@ -14,7 +14,9 @@ DEFAULT_BATCH_SIZE = 500
 def transaction_fingerprint(transaction: Transaction) -> str:
     """Return a stable content fingerprint used to suppress duplicate writes."""
     payload = transaction.model_dump(mode="json")
-    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
