@@ -14,9 +14,7 @@ class StrictModel(BaseModel):
 
 
 class RenderedEvidence(StrictModel):
-    format: Literal["commerce-history-rendered-v01"] = (
-        "commerce-history-rendered-v01"
-    )
+    format: Literal["commerce-history-rendered-v01"] = "commerce-history-rendered-v01"
     source: str = Field(min_length=1)
     capture_method: Literal["browser-rendered-dom"] = "browser-rendered-dom"
     captured_at: datetime
