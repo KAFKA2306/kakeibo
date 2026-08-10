@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from kakeibo.commerce_history.adapters.base import BrowserAdapterSpec
+from src.kakeibo.commerce_history.adapters.base import BrowserAdapterSpec
 
 
 AMAZON_JP_SPEC = BrowserAdapterSpec(
