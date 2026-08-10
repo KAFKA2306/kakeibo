@@ -99,6 +99,9 @@ def test_adapter_contract_keeps_source_specific_facts_out_of_core() -> None:
     assert AMAZON_JP_SPEC.record_selector == ".order-card.js-order-card"
 
     assert RAKUTEN_JP_SPEC.source == "rakuten.co.jp"
-    assert RAKUTEN_JP_SPEC.record_selector is None
-    assert RAKUTEN_JP_SPEC.item_selector is None
+    assert 'aria-label="注文詳細"' in (RAKUTEN_JP_SPEC.record_selector or "")
+    assert "item.rakuten.co.jp" in (RAKUTEN_JP_SPEC.item_selector or "")
+    assert "?page=N" in RAKUTEN_JP_SPEC.pagination_strategy
+    assert 'aria-label="next"' in RAKUTEN_JP_SPEC.pagination_strategy
     assert any("multiple items" in note for note in RAKUTEN_JP_SPEC.notes)
+    assert any("127/127" in note for note in RAKUTEN_JP_SPEC.notes)
