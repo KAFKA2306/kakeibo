@@ -9,6 +9,8 @@ from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import parse_qs, urlparse, urlunparse
 
+from pydantic import HttpUrl
+
 from ..hashing import raw_record_sha256
 from ..models import CanonicalItem, CanonicalOrder, Provenance
 
@@ -128,13 +130,18 @@ def _clean_product_url(value: str) -> str:
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
 
+def _first_query_value(query: Mapping[str, list[str]], key: str) -> str | None:
+    values = query.get(key, [])
+    return values[0] if values else None
+
+
 def _product_id(anchors: list[_AnchorBuffer]) -> str:
     for anchor in anchors:
         if not anchor.href or "my.bookmark.rakuten.co.jp/" not in anchor.href:
             continue
         query = parse_qs(urlparse(anchor.href).query)
-        shop_bid = (query.get("shop_bid") or [None])[0]
-        item_id = (query.get("iid") or [None])[0]
+        shop_bid = _first_query_value(query, "shop_bid")
+        item_id = _first_query_value(query, "iid")
         if shop_bid and item_id:
             return f"{shop_bid}:{item_id}"
     raise ValueError("Rakuten item is missing stable shop_bid:iid evidence")
@@ -173,7 +180,7 @@ def _parse_item(buffer: _ItemBuffer, *, order_id: str, item_no: int) -> Canonica
         item_no=item_no,
         product_name=product_name,
         product_id=_product_id(buffer.anchors),
-        product_url=product_url,
+        product_url=HttpUrl(product_url) if product_url is not None else None,
         quantity=None,
         amount=_item_amount(buffer),
     )
@@ -248,7 +255,7 @@ def parse_rakuten_record(
         partition=str(record["partition"]),
         page=str(record["page"]),
         record_position=int(record["record_position"]),
-        source_page_url=str(record["source_page_url"]),
+        source_page_url=HttpUrl(str(record["source_page_url"])),
         raw_record_sha256=raw_hash,
         parser_version=RAKUTEN_PARSER_VERSION,
     )
