@@ -1,4 +1,4 @@
-from src.kakeibo.commerce_history.adapters.base import BrowserAdapterSpec
+from src.kakeibo.commerce_history.adapters.base import BrowserAdapterSpec  # noqa: I001
 
 
 AMAZON_JP_SPEC = BrowserAdapterSpec(
