@@ -3,12 +3,12 @@ from src.kakeibo.commerce_history.adapters.base import BrowserAdapterSpec  # noq
 
 RAKUTEN_JP_SPEC = BrowserAdapterSpec(
     source="rakuten.co.jp",
-    parser_version="rakuten_v01",
+    parser_version="rakuten_v02",
     record_selector=(
         'a[aria-label="注文詳細"][href*="purchase-history"]'
         '[href*="order_number="][href*="shop_id="]'
     ),
-    item_selector='a[rel="noreferrer"][href*="item.rakuten.co.jp"]',
+    item_selector='div[class*="padding-all-xlarge"]',
     partition_strategy="discover year/month filters from rendered purchase-history UI",
     pagination_strategy=(
         "verified rendered pagination: page query parameter (?page=N), "
@@ -20,29 +20,33 @@ RAKUTEN_JP_SPEC = BrowserAdapterSpec(
     ),
     notes=(
         (
-            "Verified 2026-08-10 rendered capture: 127/127 records across six pages "
-            "(25+25+25+25+25+2), PASS."
+            "Verified 2026-08-10 v04 capture: 127/127 records across six pages "
+            "(25+25+25+25+25+2), capture PASS and field-coverage PASS."
         ),
         (
-            "Verified rendered page exposes order date, order number, shop, "
-            "order-detail link, items and amounts."
+            "Verified all 127 raw SHA-256 values replay exactly; parser v02 normalizes "
+            "127 orders into 131 item rows."
         ),
         (
-            "Use the semantic order-detail anchor as the record locator, then climb to "
-            "the smallest ancestor containing exactly one order link plus 注文日/注文番号; "
-            "hashed CSS-module class names are not a contract."
+            "Stable Rakuten product_id is shop_bid:iid from the rendered bookmark link; "
+            "this remains available when the product page itself is unavailable."
+        ),
+        (
+            "The purchase-history item price is normalized to commerce_item.amount. "
+            "commerce_order.total_amount stays null because shipping, coupons and other "
+            "order-level adjustments are not proven by this list view."
         ),
         (
             "One order may contain multiple items; normalize as one commerce_order to "
             "many commerce_item rows."
         ),
         (
-            "A product page may be unavailable while product name and amount remain "
-            "visible; product_url is nullable."
+            "A product page may be unavailable while product name, stable product ID and "
+            "item price remain visible; product_url is nullable."
         ),
         (
-            "Exclude the page-level buy-again recommendation section from captured "
-            "order records."
+            "Use semantic attributes and evidence content as the contract; CSS-module "
+            "class names are implementation details used only inside the verified parser."
         ),
         "Verified order-detail links expose order_number and shop_id.",
         (
