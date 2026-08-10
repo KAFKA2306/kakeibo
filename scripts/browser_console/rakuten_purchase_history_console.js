@@ -5,6 +5,8 @@
     stableRounds: 3,
     maxScrollRounds: 60,
     settleMs: 1200,
+    navigationTimeoutMs: 15000,
+    maxPages: 100,
     maxAncestorDepth: 12,
   };
 
@@ -26,21 +28,28 @@
     ).join("");
   };
 
+  // Must match src/kakeibo/commerce_history/hashing.py exactly:
+  // json.dumps(..., ensure_ascii=False, sort_keys=True, separators=(",", ":"))
   const rawRecordSha256 = async (renderedHtml, renderedText) =>
-    sha256Hex(`${renderedHtml}\u001e${renderedText}`);
-
-  const orderDetailAnchors = () =>
-    Array.from(
-      document.querySelectorAll('a[href*="purchase-history"][href*="order_number="]'),
+    sha256Hex(
+      JSON.stringify({
+        rendered_html: renderedHtml,
+        rendered_text: renderedText,
+      }),
     );
 
-  const uniqueOrderAnchors = () => {
+  const orderDetailAnchors = (doc) =>
+    Array.from(
+      doc.querySelectorAll('a[href*="purchase-history"][href*="order_number="]'),
+    );
+
+  const uniqueOrderAnchors = (doc) => {
     const seen = new Set();
     const result = [];
-    for (const anchor of orderDetailAnchors()) {
+    for (const anchor of orderDetailAnchors(doc)) {
       let url;
       try {
-        url = new URL(anchor.href, location.href);
+        url = new URL(anchor.href, doc.location?.href ?? location.href);
       } catch {
         continue;
       }
@@ -51,6 +60,20 @@
     }
     return result;
   };
+
+  const orderFingerprint = (doc) =>
+    uniqueOrderAnchors(doc)
+      .map((anchor) => {
+        try {
+          return new URL(anchor.href, doc.location?.href ?? location.href).searchParams.get(
+            "order_number",
+          );
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .join("|");
 
   const findRecordRoot = (anchor) => {
     let node = anchor;
@@ -73,12 +96,12 @@
     return anchor.parentElement ?? anchor;
   };
 
-  const autoScrollUntilStable = async () => {
+  const autoScrollUntilStable = async (doc, win) => {
     let previousCount = -1;
     let stable = 0;
 
     for (let round = 1; round <= CONFIG.maxScrollRounds; round += 1) {
-      const count = uniqueOrderAnchors().length;
+      const count = uniqueOrderAnchors(doc).length;
       console.log(`[Rakuten capture] scroll ${round}: ${count} orders in DOM`);
 
       if (count === previousCount) stable += 1;
@@ -87,16 +110,16 @@
       if (stable >= CONFIG.stableRounds) break;
       previousCount = count;
 
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+      win.scrollTo({ top: doc.documentElement.scrollHeight, behavior: "instant" });
       await sleep(CONFIG.settleMs);
     }
 
-    window.scrollTo({ top: 0, behavior: "instant" });
+    win.scrollTo({ top: 0, behavior: "instant" });
     await sleep(150);
   };
 
-  const visibleReportedCount = () => {
-    const candidates = Array.from(document.querySelectorAll("body *"))
+  const visibleReportedCount = (doc) => {
+    const candidates = Array.from(doc.querySelectorAll("body *"))
       .map((node) => normalizeText(node.textContent))
       .filter((text) => /^\d+件$/.test(text));
     if (candidates.length === 0) return null;
@@ -106,8 +129,8 @@
     return values.length ? Math.max(...values) : null;
   };
 
-  const safeUrlParts = (href) => {
-    const url = new URL(href, location.href);
+  const safeUrlParts = (href, baseHref) => {
+    const url = new URL(href, baseHref);
     return {
       order_number: url.searchParams.get("order_number"),
       shop_id: url.searchParams.get("shop_id"),
@@ -115,9 +138,9 @@
     };
   };
 
-  const captureRecords = async () => {
+  const capturePageRecords = async (doc, pageUrl, startingPosition) => {
     const capturedAt = new Date().toISOString();
-    const anchors = uniqueOrderAnchors();
+    const anchors = uniqueOrderAnchors(doc);
     const records = [];
 
     for (let index = 0; index < anchors.length; index += 1) {
@@ -125,27 +148,167 @@
       const root = findRecordRoot(anchor);
       const renderedHtml = root.outerHTML;
       const renderedText = normalizeText(root.innerText);
-      const link = safeUrlParts(anchor.href);
+      const link = safeUrlParts(anchor.href, pageUrl);
 
       records.push({
         format: "commerce-history-rendered-v01",
         source: "rakuten.co.jp",
         capture_method: "browser-rendered-dom",
         captured_at: capturedAt,
-        partition: "current-rendered-view",
-        page: location.href,
-        record_position: index + 1,
-        source_page_url: location.href,
-        order_number: link.order_number,
-        shop_id: link.shop_id,
-        order_detail_url: link.order_detail_url,
+        partition: "all-purchase-history",
+        page: pageUrl,
+        record_position: startingPosition + index,
+        source_page_url: pageUrl,
         rendered_html: renderedHtml,
         rendered_text: renderedText,
         raw_record_sha256: await rawRecordSha256(renderedHtml, renderedText),
+        _capture_link: link,
       });
     }
 
     return records;
+  };
+
+  const stripPrivateCaptureHelpers = (record) => {
+    const { _capture_link: link, ...evidence } = record;
+    return {
+      ...evidence,
+      order_number: link.order_number,
+      shop_id: link.shop_id,
+      order_detail_url: link.order_detail_url,
+    };
+  };
+
+  const isDisabled = (element) =>
+    element.hasAttribute("disabled") ||
+    element.getAttribute("aria-disabled") === "true" ||
+    element.classList.contains("disabled");
+
+  const nextControl = (doc) => {
+    const candidates = Array.from(doc.querySelectorAll("a, button"));
+    let best = null;
+
+    for (const element of candidates) {
+      if (isDisabled(element)) continue;
+
+      const text = normalizeText(element.innerText || element.textContent);
+      const aria = normalizeText(element.getAttribute("aria-label"));
+      const title = normalizeText(element.getAttribute("title"));
+      const rel = normalizeText(element.getAttribute("rel"));
+      const label = `${text} ${aria} ${title}`.trim();
+
+      let score = 0;
+      if (/\bnext\b/i.test(rel)) score += 100;
+      if (/^(次へ|次のページ|次|›|»|＞|→)$/.test(text)) score += 80;
+      if (/(次へ|次のページ|next)/i.test(label)) score += 60;
+
+      const href = element instanceof HTMLAnchorElement ? element.href : null;
+      if (href) {
+        let url;
+        try {
+          url = new URL(href, doc.location?.href ?? location.href);
+        } catch {
+          continue;
+        }
+        if (url.origin !== location.origin) continue;
+        if (!url.pathname.includes("purchase-history")) score -= 20;
+        if (url.searchParams.has("order_number")) score -= 100;
+      }
+
+      if (score > 0 && (!best || score > best.score)) {
+        best = { element, score, href };
+      }
+    }
+
+    return best;
+  };
+
+  const createTraversalFrame = async (url) => {
+    const frame = document.createElement("iframe");
+    Object.assign(frame.style, {
+      position: "fixed",
+      left: "-20000px",
+      top: "0",
+      width: "1280px",
+      height: "900px",
+      opacity: "0",
+      pointerEvents: "none",
+      border: "0",
+    });
+    document.body.appendChild(frame);
+
+    await loadFrame(frame, url);
+    return frame;
+  };
+
+  const loadFrame = (frame, url) =>
+    new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error(`pagination iframe load timeout: ${url}`));
+      }, CONFIG.navigationTimeoutMs);
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        frame.removeEventListener("load", onLoad);
+      };
+
+      const onLoad = async () => {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc) throw new Error("pagination iframe is not same-origin");
+          await waitForOrders(doc);
+          cleanup();
+          resolve();
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
+      };
+
+      frame.addEventListener("load", onLoad);
+      frame.src = url;
+    });
+
+  const waitForOrders = async (doc) => {
+    const started = Date.now();
+    while (Date.now() - started < CONFIG.navigationTimeoutMs) {
+      if (uniqueOrderAnchors(doc).length > 0) return;
+      await sleep(250);
+    }
+    throw new Error("pagination page rendered without detectable order records");
+  };
+
+  const waitForFingerprintChange = async (doc, previousFingerprint) => {
+    const started = Date.now();
+    while (Date.now() - started < CONFIG.navigationTimeoutMs) {
+      const current = orderFingerprint(doc);
+      if (current && current !== previousFingerprint) return;
+      await sleep(250);
+    }
+    throw new Error("pagination control did not advance to a new order set");
+  };
+
+  const advanceFrame = async (frame) => {
+    const doc = frame.contentDocument;
+    if (!doc) return false;
+
+    const control = nextControl(doc);
+    if (!control) return false;
+
+    const previousFingerprint = orderFingerprint(doc);
+    const previousUrl = frame.contentWindow?.location.href ?? frame.src;
+
+    if (control.href) {
+      const nextUrl = new URL(control.href, previousUrl);
+      if (nextUrl.href === previousUrl) return false;
+      await loadFrame(frame, nextUrl.href);
+      return true;
+    }
+
+    control.element.click();
+    await waitForFingerprintChange(frame.contentDocument, previousFingerprint);
+    return true;
   };
 
   const downloadJson = (payload) => {
@@ -165,23 +328,80 @@
     return filename;
   };
 
+  const addUniqueRecords = (target, seenOrderNumbers, pageRecords) => {
+    let added = 0;
+    for (const record of pageRecords) {
+      const orderNumber = record._capture_link.order_number;
+      if (!orderNumber || seenOrderNumbers.has(orderNumber)) continue;
+      seenOrderNumbers.add(orderNumber);
+      target.push(stripPrivateCaptureHelpers(record));
+      added += 1;
+    }
+    return added;
+  };
+
   const run = async () => {
     if (!location.hostname.endsWith("rakuten.co.jp")) {
       throw new Error("楽天の購入履歴ページで実行してください。");
     }
 
-    console.log("[Rakuten capture] rendered purchase-history capture start");
-    await autoScrollUntilStable();
+    console.log("[Rakuten capture] full rendered purchase-history capture start");
+    const reportedRecords = visibleReportedCount(document);
+    const records = [];
+    const seenOrderNumbers = new Set();
+    const pageUrls = [];
 
-    const records = await captureRecords();
-    const reportedRecords = visibleReportedCount();
+    await autoScrollUntilStable(document, window);
+    const firstUrl = location.href;
+    const firstPage = await capturePageRecords(document, firstUrl, 1);
+    addUniqueRecords(records, seenOrderNumbers, firstPage);
+    pageUrls.push(firstUrl);
+
+    let frame = null;
+    try {
+      if (reportedRecords == null || records.length < reportedRecords) {
+        frame = await createTraversalFrame(firstUrl);
+        await autoScrollUntilStable(frame.contentDocument, frame.contentWindow);
+
+        for (let pageIndex = 2; pageIndex <= CONFIG.maxPages; pageIndex += 1) {
+          const advanced = await advanceFrame(frame);
+          if (!advanced) break;
+
+          const doc = frame.contentDocument;
+          const win = frame.contentWindow;
+          if (!doc || !win) throw new Error("pagination iframe became unavailable");
+
+          await autoScrollUntilStable(doc, win);
+          const pageUrl = win.location.href;
+          const pageRecords = await capturePageRecords(doc, pageUrl, records.length + 1);
+          const added = addUniqueRecords(records, seenOrderNumbers, pageRecords);
+          pageUrls.push(pageUrl);
+
+          console.log(
+            `[Rakuten capture] page ${pageIndex}: +${added}, total ${records.length}`,
+          );
+
+          if (added === 0) break;
+          if (reportedRecords != null && records.length >= reportedRecords) break;
+        }
+      }
+    } finally {
+      frame?.remove();
+    }
+
+    records.forEach((record, index) => {
+      record.record_position = index + 1;
+    });
+
     const payload = {
       format: "commerce-history-capture-bundle-v01",
       source: "rakuten.co.jp",
       captured_at: new Date().toISOString(),
-      source_page_url: location.href,
+      source_page_url: firstUrl,
       reported_records: reportedRecords,
       captured_records: records.length,
+      pages_captured: pageUrls.length,
+      page_urls: pageUrls,
       capture_status:
         reportedRecords == null
           ? "UNKNOWN"
@@ -195,14 +415,15 @@
     console.table({
       reported_records: reportedRecords,
       captured_records: records.length,
+      pages_captured: pageUrls.length,
       capture_status: payload.capture_status,
       file: filename,
     });
 
     if (reportedRecords != null && reportedRecords !== records.length) {
       console.warn(
-        `[Rakuten capture] ${reportedRecords}件表示に対してDOMから${records.length}件のみ取得しました。` +
-          " ページ分割がある場合は各表示ページで実行してください。未確認のpagination URLは推測していません。",
+        `[Rakuten capture] ${reportedRecords}件表示に対して${records.length}件取得。` +
+          " capture_status=PARTIAL のため、このJSONだけを完全履歴として扱わないでください。",
       );
     }
 
