@@ -1,7 +1,10 @@
 from datetime import date
 from types import SimpleNamespace
 
-from src.kakeibo.adapters.supabase_repo import SupabaseRepository, transaction_fingerprint
+from src.kakeibo.adapters.supabase_repo import (
+    SupabaseRepository,
+    transaction_fingerprint,
+)
 from src.kakeibo.domain.models import Transaction
 
 
