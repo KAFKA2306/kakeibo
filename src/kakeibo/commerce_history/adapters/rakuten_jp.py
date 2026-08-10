@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .base import BrowserAdapterSpec
+from kakeibo.commerce_history.adapters.base import BrowserAdapterSpec
 
 
 RAKUTEN_JP_SPEC = BrowserAdapterSpec(
