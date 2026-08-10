@@ -29,7 +29,7 @@ class RenderedEvidence(StrictModel):
     raw_record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
     @model_validator(mode="after")
-    def validate_raw_hash(self) -> "RenderedEvidence":
+    def validate_raw_hash(self) -> RenderedEvidence:
         expected = raw_record_sha256(
             rendered_html=self.rendered_html,
             rendered_text=self.rendered_text,
@@ -78,7 +78,7 @@ class CaptureAudit(StrictModel):
     status: Literal["PASS", "PARTIAL", "FAIL"]
 
     @model_validator(mode="after")
-    def validate_status(self) -> "CaptureAudit":
+    def validate_status(self) -> CaptureAudit:
         if self.reported_records is None:
             return self
         if self.captured_records == self.reported_records and self.status != "PASS":
@@ -94,7 +94,7 @@ class ParseAudit(StrictModel):
     status: Literal["PASS", "PARTIAL", "FAIL"]
 
     @model_validator(mode="after")
-    def validate_status(self) -> "ParseAudit":
+    def validate_status(self) -> ParseAudit:
         if self.parsed_records > self.captured_records:
             raise ValueError("parsed_records cannot exceed captured_records")
         if self.parsed_records == self.captured_records and self.status != "PASS":
@@ -111,7 +111,7 @@ class FieldCoverage(StrictModel):
     status: Literal["PASS", "PARTIAL", "FAIL"]
 
     @model_validator(mode="after")
-    def validate_status(self) -> "FieldCoverage":
+    def validate_status(self) -> FieldCoverage:
         if self.populated_records > self.eligible_records:
             raise ValueError("populated_records cannot exceed eligible_records")
         if self.populated_records == self.eligible_records and self.status != "PASS":
