@@ -15,7 +15,9 @@ def test_canonical_finance_flow_contract_exists() -> None:
 
 def test_unrelated_weekly_research_workflow_is_not_reintroduced() -> None:
     workflow = ROOT / ".github/workflows/weekly-repo-research.yml"
-    assert not workflow.exists(), "weekly repository research is outside the finance flow"
+    assert not workflow.exists(), (
+        "weekly repository research is outside the finance flow"
+    )
 
 
 def test_canonical_contract_names_three_kpis() -> None:
