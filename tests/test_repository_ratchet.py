@@ -1,7 +1,7 @@
-from pathlib import Path
+import pathlib
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def test_canonical_finance_flow_contract_exists() -> None:
