@@ -1,5 +1,7 @@
 # Kakeibo — 銀行取引データの整形・分析基盤
 
+[![CI](https://github.com/KAFKA2306/kakeibo/actions/workflows/ci.yml/badge.svg)](https://github.com/KAFKA2306/kakeibo/actions/workflows/ci.yml)
+
 **家計簿で最初に守るべきなのは、集計結果ではない。元の明細をGitへ出さないことだ。**
 
 Kakeiboは、銀行やカードの取引明細をローカルで正規化しながら、実データ・生成物・ログ・認証情報をGitの外側に隔離するPythonプロジェクトです。公開リポジトリにはコードと合成テストデータだけを置きます。
