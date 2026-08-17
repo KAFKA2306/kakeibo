@@ -45,6 +45,8 @@ def test_page_is_local_only_and_hides_transaction_rows(tmp_path: Path) -> None:
     assert "LOCAL ONLY" in response.text
     assert "外部CDN・外部API・外部送信を使用しません" in response.text
     assert "個別明細" in response.text
+    assert 'id="review-status" class="status" role="status" aria-atomic="true"' in response.text
+    assert 'id="commit-status" class="status" role="status" aria-atomic="true"' in response.text
     assert "https://" not in response.text
     assert "http://" not in response.text
     assert response.headers["cache-control"] == "no-store"
