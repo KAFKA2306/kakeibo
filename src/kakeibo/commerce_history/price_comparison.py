@@ -24,6 +24,9 @@ IdentityBasis = Literal[
     "UNVERIFIED",
 ]
 PriceType = Literal["CURRENT_MARKET_OBSERVATION", "REFERENCE_PRICE"]
+AuditStatus = Literal["PASS", "RECHECK", "FAIL"]
+FreshnessStatus = Literal["PASS", "RECHECK"]
+PriceTypeStatus = Literal["PASS", "REFERENCE"]
 PriceAuditConclusion = Literal[
     "PASS_MARKET_COMPARE",
     "REFERENCE_ONLY",
@@ -56,9 +59,9 @@ class PriceObservation(StrictModel):
 
 
 class PriceAudit(StrictModel):
-    identity_status: Literal["PASS", "RECHECK", "FAIL"]
-    freshness_status: Literal["PASS", "RECHECK"]
-    price_type_status: Literal["PASS", "REFERENCE"]
+    identity_status: AuditStatus
+    freshness_status: FreshnessStatus
+    price_type_status: PriceTypeStatus
     sales_channel: SalesChannel
     conclusion: PriceAuditConclusion
 
@@ -92,20 +95,34 @@ def audit_price_observation(
     if observation.observed_at > as_of:
         raise ValueError("observation cannot be newer than as_of")
 
-    if purchase.product_id != observation.product_id or observation.identity_basis == "MISMATCH":
+    identity_status: AuditStatus
+    if (
+        purchase.product_id != observation.product_id
+        or observation.identity_basis == "MISMATCH"
+    ):
         identity_status = "FAIL"
-    elif observation.identity_basis in {"ASIN_EXACT", "ISBN_EXACT", "MODEL_EXACT", "JAN_EXACT"}:
+    elif observation.identity_basis in {
+        "ASIN_EXACT",
+        "ISBN_EXACT",
+        "MODEL_EXACT",
+        "JAN_EXACT",
+    }:
         identity_status = "PASS"
     else:
         identity_status = "RECHECK"
 
-    freshness_status = (
-        "PASS" if as_of - observation.observed_at <= timedelta(days=max_age_days) else "RECHECK"
+    freshness_status: FreshnessStatus = (
+        "PASS"
+        if as_of - observation.observed_at <= timedelta(days=max_age_days)
+        else "RECHECK"
     )
-    price_type_status = (
-        "PASS" if observation.price_type == "CURRENT_MARKET_OBSERVATION" else "REFERENCE"
+    price_type_status: PriceTypeStatus = (
+        "PASS"
+        if observation.price_type == "CURRENT_MARKET_OBSERVATION"
+        else "REFERENCE"
     )
 
+    conclusion: PriceAuditConclusion
     if identity_status == "FAIL":
         conclusion = "REJECT"
     elif identity_status == "RECHECK":
@@ -136,7 +153,12 @@ def compare_price(
     if purchase.currency != observation.currency:
         raise ValueError("purchase and observation currencies must match")
 
-    audit = audit_price_observation(purchase, observation, as_of=as_of, max_age_days=max_age_days)
+    audit = audit_price_observation(
+        purchase,
+        observation,
+        as_of=as_of,
+        max_age_days=max_age_days,
+    )
     if audit.conclusion != "PASS_MARKET_COMPARE":
         return PriceComparisonResult(audit=audit, comparison=None)
 
