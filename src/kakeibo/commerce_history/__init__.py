@@ -16,6 +16,15 @@ from .parsers import (
     parse_rakuten_bundle,
     parse_rakuten_record,
 )
+from .price_comparison import (
+    PriceAudit,
+    PriceComparison,
+    PriceComparisonResult,
+    PriceObservation,
+    PurchasePrice,
+    audit_price_observation,
+    compare_price,
+)
 
 __all__ = [
     "CanonicalItem",
@@ -23,10 +32,17 @@ __all__ = [
     "CaptureAudit",
     "FieldCoverage",
     "ParseAudit",
+    "PriceAudit",
+    "PriceComparison",
+    "PriceComparisonResult",
+    "PriceObservation",
     "Provenance",
+    "PurchasePrice",
     "RAKUTEN_PARSER_VERSION",
     "RakutenParsedRecord",
     "RenderedEvidence",
+    "audit_price_observation",
+    "compare_price",
     "parse_rakuten_bundle",
     "parse_rakuten_record",
     "raw_record_sha256",
