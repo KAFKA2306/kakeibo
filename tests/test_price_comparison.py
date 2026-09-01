@@ -49,7 +49,9 @@ def test_exact_fresh_market_price_produces_deterministic_comparison() -> None:
     assert result.audit.conclusion == "PASS_MARKET_COMPARE"
     assert result.comparison is not None
     assert result.comparison.absolute_difference == Decimal("1656")
-    assert result.comparison.change_rate_percent == Decimal("1656") / Decimal("5144") * Decimal("100")
+    assert result.comparison.change_rate_percent == (
+        Decimal("1656") / Decimal("5144") * Decimal("100")
+    )
     assert result.comparison.sales_channel == "AMAZON"
 
 
