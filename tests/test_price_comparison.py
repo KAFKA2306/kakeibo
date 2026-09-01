@@ -16,9 +16,9 @@ def _purchase() -> PurchasePrice:
         source="amazon.co.jp",
         order_id="fixture-order-1",
         item_no=1,
-        product_id="B09YY3DM1Z",
+        product_id="fixture-product-1",
         purchased_at=date(2026, 7, 28),
-        purchase_price=Decimal("5144"),
+        purchase_price=Decimal("1000"),
         currency="JPY",
         purchase_price_basis="CONFIRMED_SINGLE_ITEM_ORDER_TOTAL",
     )
@@ -26,11 +26,11 @@ def _purchase() -> PurchasePrice:
 
 def _observation(**overrides: object) -> PriceObservation:
     values: dict[str, object] = {
-        "product_id": "B09YY3DM1Z",
-        "observed_price": Decimal("6800"),
+        "product_id": "fixture-product-1",
+        "observed_price": Decimal("1250"),
         "currency": "JPY",
         "observed_at": datetime(2026, 9, 1, tzinfo=UTC),
-        "source_url": "https://www.amazon.co.jp/dp/B09YY3DM1Z",
+        "source_url": "https://example.test/products/fixture-product-1",
         "sales_channel": "AMAZON",
         "price_type": "CURRENT_MARKET_OBSERVATION",
         "identity_basis": "ASIN_EXACT",
@@ -48,10 +48,8 @@ def test_exact_fresh_market_price_produces_deterministic_comparison() -> None:
 
     assert result.audit.conclusion == "PASS_MARKET_COMPARE"
     assert result.comparison is not None
-    assert result.comparison.absolute_difference == Decimal("1656")
-    assert result.comparison.change_rate_percent == (
-        Decimal("1656") / Decimal("5144") * Decimal("100")
-    )
+    assert result.comparison.absolute_difference == Decimal("250")
+    assert result.comparison.change_rate_percent == Decimal("25")
     assert result.comparison.sales_channel == "AMAZON"
 
 
@@ -92,7 +90,7 @@ def test_reference_price_is_not_used_as_market_delta() -> None:
 def test_mismatched_product_is_rejected() -> None:
     audit = audit_price_observation(
         _purchase(),
-        _observation(product_id="OTHER-ASIN"),
+        _observation(product_id="fixture-product-2"),
         as_of=datetime(2026, 9, 2, tzinfo=UTC),
     )
 
