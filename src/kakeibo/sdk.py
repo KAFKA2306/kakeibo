@@ -165,7 +165,11 @@ def normalize_statement(
         {key: _iso(value) for key, value in row.items()}
         for row in cleaned.to_dicts()
     )
-    dates = [row["transaction_date"] for row in transactions if row["transaction_date"]]
+    dates = [
+        row["transaction_date"]
+        for row in transactions
+        if row["transaction_date"]
+    ]
     rejected_count = max(raw.height - cleaned.height, 0)
 
     return NormalizationResult(
