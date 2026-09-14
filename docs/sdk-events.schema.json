@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KAFKA2306/kakeibo/docs/sdk-events.schema.json",
+  "title": "Kakeibo local normalization SDK event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_name",
+    "observation_kind",
+    "statement_type",
+    "reason_code",
+    "record_count"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "kakeibo-sdk-event/v1"
+    },
+    "event_name": {
+      "enum": ["normalization_completed", "normalization_failed", "integration_started"]
+    },
+    "observation_kind": {
+      "enum": ["synthetic", "test", "actual"]
+    },
+    "statement_type": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$"
+    },
+    "reason_code": {
+      "type": "string"
+    },
+    "record_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "schema_contract": {
+      "type": "string"
+    }
+  }
+}
