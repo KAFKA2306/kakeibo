@@ -66,9 +66,7 @@ def test_sdk_normalizes_three_registered_adapters(
 def test_sdk_manifest_reuses_statement_registry() -> None:
     manifest = {entry.statement_type: entry for entry in adapter_manifest()}
 
-    assert {"sony", "enavi", "aplus", "transaction", "generic"} <= set(
-        manifest
-    )
+    assert {"sony", "enavi", "aplus", "transaction", "generic"} <= set(manifest)
     assert manifest["transaction"].suffixes == (".csv",)
     assert manifest["sony"].encoding == "utf-8-sig"
 
