@@ -54,7 +54,10 @@ class GenericCsvParser(ParserPort):
                 break
 
         # 日付・金額の列が不明な明細を、欠損値として集計へ渡さない。
-        if "raw_date" not in column_mapping.values() or "raw_withdrawal" not in column_mapping.values():
+        if (
+            "raw_date" not in column_mapping.values()
+            or "raw_withdrawal" not in column_mapping.values()
+        ):
             raise ValueError("generic CSV requires a recognized date and amount column")
 
         # もしマッピングできればリネーム、なければ null列を追加
