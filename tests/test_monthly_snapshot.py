@@ -87,3 +87,22 @@ def test_invalid_month_and_csv_fail_closed(tmp_path: Path) -> None:
             fx_source="fixture://fx",
             fx_retrieved_at="2026-08-10T00:00:00Z",
         )
+
+
+def test_duplicate_input_content_is_rejected_before_publishing(tmp_path: Path) -> None:
+    first = tmp_path / "first.csv"
+    second = tmp_path / "second.csv"
+    _write_csv(first, [("2026-07-01", 1000)])
+    second.write_bytes(first.read_bytes())
+    artifact_root = tmp_path / "artifacts"
+
+    with pytest.raises(SnapshotError, match="duplicate normalized CSV content"):
+        build_monthly_snapshot(
+            month="2026-07",
+            input_paths=[first, second],
+            artifact_root=artifact_root,
+            fx_source="fixture://fx",
+            fx_retrieved_at="2026-08-10T00:00:00Z",
+        )
+
+    assert not (artifact_root / "2026-07").exists()
