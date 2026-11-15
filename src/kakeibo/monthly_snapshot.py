@@ -109,9 +109,13 @@ def build_monthly_snapshot(
         raise SnapshotError("fx_retrieved_at must be ISO-8601") from exc
 
     inputs: list[dict[str, str | int]] = []
+    seen_digests: set[str] = set()
     totals = MonthlyTotals(0, 0, 0, 0)
     for path in input_paths:
         digest, rows, monthly_totals = _read_input(path, month)
+        if digest in seen_digests:
+            raise SnapshotError("duplicate normalized CSV content")
+        seen_digests.add(digest)
         inputs.append({"sha256": digest, "row_count": rows})
         totals = MonthlyTotals(
             totals.transaction_count + monthly_totals.transaction_count,
